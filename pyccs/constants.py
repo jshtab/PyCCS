@@ -1,0 +1,45 @@
+#  Copyright 2020 Jacob Shtabnoy <shtabnoyjacob@scps.net>
+#  This source code file is available under the terms of the ISC License.
+#  If the LICENSE file was not provided, you can find the full text of the license here:
+#  https://opensource.org/licenses/ISC
+"""This module defines constants for use throughout PyCCS."""
+
+from enum import Enum
+from struct import Struct
+
+
+class DataType(Enum):
+    """Describes a struct used in the Classic Protocol, used for parsing packets. The value of each enum is a compiled
+    Struct that can be used to pack and unpack raw bytes according to the DataType."""
+    STRING = Struct("64s")
+    """Describes US-ASCII/ISO646-US encoded string, padded with spaces to 64 bytes.
+    
+    **Note**: Using the struct to pack the string directly will result in a **null**-padded string, and the protocol
+    expects it to be **space**-padded. Use ljust(64) on the string before using the struct to truncate the string."""
+    SHORT = Struct("!h")
+    """Describes network-order signed short."""
+    BYTE = Struct("B")
+    """Describes a unsigned byte integer"""
+    SIGNED = Struct("b")
+    """Describes a signed byte integer"""
+    BYTES = Struct("1024s")
+    """Describes an array of bytes, null-padded to 1024 bytes."""
+
+
+class Version:
+    """Contains a str-able representation of the version of PyCCS."""
+    SOFTWARE = "PyCCS"
+    """Name of the server software (used for CPE)"""
+    MAJOR = 0
+    """Major version per semver v2"""
+    MINOR = 0
+    """Minor version per semver v2"""
+    PATCH = 0
+    """Patch number per semver v2"""
+
+    def __str__(self):
+        return "%s %d.%d.%d" % (self.software, self.major, self.minor, self.patch)
+
+
+VERSION = Version()
+"""Constant instance of the Version class."""

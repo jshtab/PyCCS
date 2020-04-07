@@ -1,4 +1,13 @@
-docs/
-.venv/
-.idea/
-.vscode/
+# packaging
+build
+dist
+PyCCS.egg-info
+*.egg
+.eggs
+
+# ide
+.vscode
+.idea
+
+# virtualenv
+.venv
