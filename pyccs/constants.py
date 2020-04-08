@@ -12,18 +12,23 @@ class DataType(Enum):
     """Describes a struct used in the Classic Protocol, used for parsing packets. The value of each enum is a compiled
     Struct that can be used to pack and unpack raw bytes according to the DataType."""
     STRING = Struct("64s")
-    """Describes US-ASCII/ISO646-US encoded string, padded with spaces to 64 bytes.
+    """Describes US-ASCII/ISO646-US encoded string, padded with spaces to 64 bytes. Expected as a bytes object.
     
     **Note**: Using the struct to pack the string directly will result in a **null**-padded string, and the protocol
-    expects it to be **space**-padded. Use ljust(64) on the string before using the struct to truncate the string."""
+    expects it to be **space**-padded. Use ljust(64) on the string before turning into bytes."""
     SHORT = Struct("!h")
-    """Describes network-order signed short."""
-    BYTE = Struct("B")
-    """Describes a unsigned byte integer"""
-    SIGNED = Struct("b")
-    """Describes a signed byte integer"""
-    BYTES = Struct("1024s")
-    """Describes an array of bytes, null-padded to 1024 bytes."""
+    """Describes network-order signed short. Expected to be an integer"""
+    BYTE = Struct("!B")
+    """Describes a unsigned byte integer. Expected to be an integer"""
+    SIGNED = Struct("!b")
+    """Describes a signed byte integer. Expected to be an integer"""
+    BYTES = Struct("!1024s")
+    """Describes an array of bytes, null-padded to 1024 bytes. Expected to be a bytes object"""
+    COARSE_VECTOR = Struct("!3h")
+    """Describes a set of 3 shorts in a X,Y,Z Vector format. Expected to be a Vector3D object"""
+    FINE_VECTOR = Struct("!3h2B")
+    """Describes a set of 3 shorts in a X,Y,Z Vector format where the lowest 5 bits represents the fractional
+    portion of the coordinate, and two bytes which represent yaw and pitch. Expected to be a Vector3D object"""
 
 
 class Version:
