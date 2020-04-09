@@ -4,20 +4,26 @@
 #  https://opensource.org/licenses/ISC
 """This module provides packet parsing utilities for the Classic Protocol, and the CPE."""
 
-from pyccs.constants import DataType, Version
+from typing import List, Tuple, Any, Optional
+from pyccs.constants import DataType
 from math import trunc
 
 
-class Vector3D:
+class Position:
     """A representation of a point in 3d space with a yaw and pitch."""
     def __init__(self, x=0.0, y=0.0, z=0.0, yaw=1.0, pitch=1.0):
         self.x = x
+        """X coordinate of the Position"""
         self.y = y
+        """Y coordinate of the Position"""
         self.z = z
+        """Z coordinate of the Position"""
         self.yaw = yaw
+        """Yaw (or heading) of the point in space, in degrees."""
         self.pitch = pitch
+        """Pitch of the point in space, in degrees."""
 
-    def to_list(self, rotation=False):
+    def to_list(self, rotation: bool = False) -> list:
         """Returns the Vector as a list in XYZ order. If `rotation` is true, yaw and pitch will be added to the end."""
         result = [self.x, self.y, self.z]
         if rotation:
@@ -28,7 +34,7 @@ class Vector3D:
         return iter(self.to_list())
 
     def __trunc__(self):
-        return Vector3D(
+        return Position(
             x=trunc(self.x),
             y=trunc(self.y),
             z=trunc(self.z),
@@ -37,9 +43,9 @@ class Vector3D:
         )
 
     def __add__(self, other):
-        if type(other) is not Vector3D:
-            other = Vector3D(other, other, other)
-        return Vector3D(
+        if type(other) is not Position:
+            other = Position(other, other, other)
+        return Position(
             x=self.x+other.x,
             y=self.y+other.y,
             z=self.z+other.z,
@@ -48,9 +54,9 @@ class Vector3D:
         )
 
     def __sub__(self, other):
-        if type(other) is not Vector3D:
-            other = Vector3D(other, other, other)
-        return Vector3D(
+        if type(other) is not Position:
+            other = Position(other, other, other)
+        return Position(
             x=self.x-other.x,
             y=self.y-other.y,
             z=self.z-other.z,
@@ -59,9 +65,9 @@ class Vector3D:
         )
 
     def __mul__(self, other):
-        if type(other) is not Vector3D:
-            other = Vector3D(other, other, other)
-        return Vector3D(
+        if type(other) is not Position:
+            other = Position(other, other, other)
+        return Position(
             x=self.x*other.x,
             y=self.y*other.y,
             z=self.z*other.z,
@@ -70,9 +76,9 @@ class Vector3D:
         )
 
     def __truediv__(self, other):
-        if type(other) is not Vector3D:
-            other = Vector3D(other, other, other)
-        return Vector3D(
+        if type(other) is not Position:
+            other = Position(other, other, other)
+        return Position(
             x=self.x/other.x,
             y=self.y/other.y,
             z=self.z/other.z,
@@ -83,12 +89,12 @@ class Vector3D:
 
 class DataPacker:
     """Provides utilities for packing/unpacking Python values into bytes for transmission."""
-    def __init__(self, data=b''):
+    def __init__(self, data: bytes = b''):
         self.data = data
         """Contains the data currently stored within the packer"""
         self.__index = 0
 
-    def add(self, data_type, value):
+    def add(self, data_type: DataType, value: Any) -> None:
         """Appends the value to the end of `data`, encoded according to the DataType enum passed."""
         if data_type == DataType.STRING:
             value = bytes(value.ljust(64), encoding="ascii")
@@ -102,7 +108,7 @@ class DataPacker:
             return
         self.data += data_type.value.pack(value)
 
-    def pop(self, data_type):
+    def pop(self, data_type: DataType) -> Optional[Any]:
         """Reads the specified data_type from `data`, and then removes it from `data`. If there is no more data
         remaining, or if the data_type does not fit into the current buffer, returns None."""
         struct = data_type.value
@@ -115,74 +121,53 @@ class DataPacker:
             value = str(value[0], encoding="ascii")
             value.strip()
         if data_type == DataType.COARSE_VECTOR:
-            value = Vector3D(*value)
+            value = Position(*value)
         if data_type == DataType.FINE_VECTOR:
-            value = Vector3D(*value) / 32
+            value = Position(*value) / 32
         self.__index = outdex
         return value
 
-    def reset(self, new_data=b''):
+    def reset(self, new_data: bytes = b'') -> None:
         """Replaces the current value of `data` with the `new_data` argument."""
         self.data = new_data
         self.__index = 0
 
 
+class PacketInfo:
+    """Contains metadata on a specific packet, such as its size, or how it should be mapped to Packet attributes."""
+    def __init__(self, packet_id: int, size: int, byte_map: List[Tuple[DataType, str]]):
+        self.packet_id = packet_id
+        """The ID of the packet"""
+        self.size = size
+        """The size of the packet (in bytes)"""
+        self.byte_map = byte_map
+        """A list of tuples which maps data in the packet to attributes."""
+
+    def to_packet(self, **kwargs):
+        """Returns a Packet using this PacketInfo. The items of kwargs will be set as the packet's attributes."""
+        packet = Packet(self)
+        for key, value in kwargs.items():
+            setattr(packet, key, value)
+        return packet
+
+
 class Packet:
-    """Abstract representation of a Classic Protocol Packet, provides utilities for parsing and transmission.
-    This is a base class and should not be used directly. Instead, use one of it's descendants."""
+    """Represents a Classic Protocol Packet, provides utilities for parsing and transmission."""
 
-    def __init__(self, data=None):
-        """Data is expected to be the bytes of the packet, excluding the packet ID. If it is not passed, the Packet
-        should initialize using default values."""
-        if data:
-            self.from_bytes(data)
+    def __init__(self, packet_info: PacketInfo):
+        self.__packet_info = packet_info
 
-    @staticmethod
-    def id():
-        """Returns this packet's ID in the Classic Protocol."""
-        raise NotImplementedError
-
-    def size(self):
-        """Returns the size of this packet (in bytes), excluding the packet ID."""
-        raise NotImplementedError
-
-    def byte_map(self):
-        """Returns the byte map for this Packet.
-
-        The byte map is list of tuples, with the first member of the tuple being the DataType, and the second member
-        being the name of the attribute it's mapped to. The order of the list should be the order that the fields appear
-        in the raw packet.
-
-        Example:
-        `[(DataType.STRING, "app_name"),(DataType.SHORT,"extension_count")]`"""
-        raise NotImplementedError
-
-    def from_bytes(self, data):
+    def from_bytes(self, data: bytes) -> None:
         """Parses a raw packet into this packet using the byte map."""
         packer = DataPacker(data)
-        for mapping in self.byte_map():
+        for mapping in self.__packet_info.byte_map:
             value = packer.pop(mapping[0])
             setattr(self, mapping[1], value)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         """Returns the packet as bytes for transmission, including the packet ID byte."""
         packer = DataPacker()
-        packer.add(DataType.BYTE, self.id())
-        for mapping in self.byte_map():
+        packer.add(DataType.BYTE, self.__packet_info.packet_id)
+        for mapping in self.__packet_info.byte_map:
             packer.add(mapping[0], getattr(self, mapping[1]))
         return packer.data
-
-
-class SignalPacket(Packet):
-    """An empty packet containing no payload other than the Packet ID. Used as a base for other packets."""
-    def size(self):
-        return 0
-
-    def byte_map(self):
-        return []
-
-    @staticmethod
-    def id():
-        pass
-
-

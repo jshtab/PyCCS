@@ -25,16 +25,16 @@ class DataType(Enum):
     BYTES = Struct("!1024s")
     """Describes an array of bytes, null-padded to 1024 bytes. Expected to be a bytes object"""
     COARSE_VECTOR = Struct("!3h")
-    """Describes a set of 3 shorts in a X,Y,Z Vector format. Expected to be a Vector3D object"""
+    """Describes a set of 3 shorts in a X,Y,Z Vector format. Expected to be a Position object"""
     FINE_VECTOR = Struct("!3h2B")
     """Describes a set of 3 shorts in a X,Y,Z Vector format where the lowest 5 bits represents the fractional
-    portion of the coordinate, and two bytes which represent yaw and pitch. Expected to be a Vector3D object"""
+    portion of the coordinate, and two bytes which represent yaw and pitch. Expected to be a Position object"""
 
 
 class Version:
     """Contains a str-able representation of the version of PyCCS."""
     SOFTWARE = "PyCCS"
-    """Name of the server software (used for CPE)"""
+    """Name of the server software"""
     MAJOR = 0
     """Major version per semver v2"""
     MINOR = 0
