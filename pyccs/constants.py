@@ -43,8 +43,10 @@ class Version:
     """Patch number per semver v2"""
 
     def __str__(self):
-        return "%s %d.%d.%d" % (self.software, self.major, self.minor, self.patch)
+        return "%s %d.%d.%d" % (self.SOFTWARE, self.MAJOR, self.MINOR, self.PATCH)
 
 
 VERSION = Version()
 """Constant instance of the Version class."""
+
+

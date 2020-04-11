@@ -119,7 +119,7 @@ class DataPacker:
         value = struct.unpack(data)
         if data_type == DataType.STRING:
             value = str(value[0], encoding="ascii")
-            value.strip()
+            value = value.rstrip()
         if data_type == DataType.COARSE_VECTOR:
             value = Position(*value)
         if data_type == DataType.FINE_VECTOR:
@@ -156,6 +156,9 @@ class Packet:
 
     def __init__(self, packet_info: PacketInfo):
         self.__packet_info = packet_info
+
+    def packet_id(self):
+        return self.__packet_info.packet_id
 
     def from_bytes(self, data: bytes) -> None:
         """Parses a raw packet into this packet using the byte map."""
