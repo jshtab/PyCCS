@@ -120,10 +120,14 @@ class DataPacker:
         if data_type == DataType.STRING:
             value = str(value[0], encoding="ascii")
             value = value.rstrip()
-        if data_type == DataType.COARSE_VECTOR:
+        elif data_type == DataType.COARSE_VECTOR:
             value = Position(*value)
-        if data_type == DataType.FINE_VECTOR:
+        elif data_type == DataType.FINE_VECTOR:
             value = Position(*value) / 32
+            value.yaw = (value.yaw * 360) / 255
+            value.pitch = (value.pitch * 360) / 255
+        else:
+            value = value[0]
         self.__index = outdex
         return value
 
