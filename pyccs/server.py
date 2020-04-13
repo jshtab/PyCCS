@@ -49,6 +49,7 @@ async def client_connection(server: Server, reader: asyncio.StreamReader, writer
         if incoming.done() or outgoing.done():
             incoming.cancel()
             outgoing.cancel()
+            await server.disconnect(player, "Socket manager failure; rejoin")
             break
         if reason := player.dropped():
             incoming.cancel()

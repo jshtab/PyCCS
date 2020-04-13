@@ -140,19 +140,29 @@ class Server:
         await self.relay_to_others(player, spawn_packet)
         own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=player.position)
         await player.send_packet(own_packet)
+        await self.chat_all(f"{player.name} joined")
 
     async def relay_to_all(self, sender: Player, packet: Packet):
         packet.player_id = sender.player_id
         for _, player in self._players.items():
-            await player.send_packet(packet)
+            if player:
+                await player.send_packet(packet)
 
     async def relay_to_others(self, sender: Player, packet: Packet):
         packet.player_id = sender.player_id
         for _, player in self._players.items():
-            if player != sender:
+            if player != sender and player:
+                await player.send_packet(packet)
+
+    async def chat_all(self, message: str):
+        packet = CHAT_MESSAGE.to_packet(message=message, player_id=-1)
+        for _, player in self._players.items():
+            if player:
                 await player.send_packet(packet)
 
     async def disconnect(self, player: Player, reason: str = "Kicked from server"):
+        self._players[player.player_id] = None
         player.drop(reason)
         packet = DESPAWN_PLAYER.to_packet(player_id=player.player_id)
         await self.relay_to_others(player, packet)
+        await self.chat_all(f"{player.name} left.")
