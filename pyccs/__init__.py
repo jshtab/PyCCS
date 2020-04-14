@@ -12,6 +12,7 @@ import random
 import string
 import asyncio
 import gzip
+import concurrent.futures as futures
 
 from pyccs.constants import *
 from pyccs.protocol import *
@@ -75,32 +76,17 @@ class Map:
         if index < len(self.data):
             self.data[index] = block_id
 
-    async def send_level(self, to: Player):
-        await to.send_signal(INITIALIZE_LEVEL)
-        data = self.volume.to_bytes(4, byteorder="big")+bytes(self.data)
-        compressed = gzip.compress(data)
-        compressed_size = len(compressed)
-        for i in range(0, compressed_size, 1024):
-            data = compressed[i:i + 1024]
-            packet = LEVEL_DATA_CHUNK.to_packet(
-                data=data,
-                length=len(data),
-                percent_complete=int((i/compressed_size)*100)
-            )
-            await to.send_packet(packet)
-        finalize = FINALIZE_LEVEL.to_packet(map_size=self.size)
-        await to.send_packet(finalize)
-
 
 class Server:
     def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565,
-                 verify_names: bool = True, map: str = "level.cw"):
+                 verify_names: bool = True, level: str = "level.cw"):
         self.name = name
         self.motd = motd
         self.port = port
         self.verify_names = verify_names
         self.salt = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(32))
-        self.map = Map(map)
+        self.level = Map(level)
+        self._pool = futures.ThreadPoolExecutor(max_workers=3)
         self._running = False
         self._queue = None
         self._players = {}
@@ -135,6 +121,24 @@ class Server:
     async def incoming_packet(self, incoming_packet: Tuple[Player, Packet]):
         await self._queue.put(incoming_packet)
 
+    async def send_level(self, player: Player):
+        loop = asyncio.get_event_loop()
+        level = self.level
+        await player.send_signal(INITIALIZE_LEVEL)
+        data = level.volume.to_bytes(4, byteorder="big") + bytes(level.data)
+        compressed = await loop.run_in_executor(self._pool, gzip.compress, data)
+        compressed_size = len(compressed)
+        for i in range(0, compressed_size, 1024):
+            data = compressed[i:i + 1024]
+            packet = LEVEL_DATA_CHUNK.to_packet(
+                data=data,
+                length=len(data),
+                percent_complete=int((i / compressed_size) * 100)
+            )
+            await player.send_packet(packet)
+        finalize = FINALIZE_LEVEL.to_packet(map_size=level.size)
+        await player.send_packet(finalize)
+
     async def add_player(self, player: Player):
         for player_id in range(0, 128):
             if not self._players.get(player_id):
@@ -143,7 +147,7 @@ class Server:
                 break
         spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name, position=player.position)
         await self.relay_to_others(player, spawn_packet)
-        own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.map.spawn)
+        own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.level.spawn)
         await player.send_packet(own_packet)
         await self.chat_all(f"{player.name} joined")
 

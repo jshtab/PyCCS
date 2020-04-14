@@ -4,6 +4,7 @@
 #  https://opensource.org/licenses/ISC
 
 import asyncio
+import gzip
 
 from pyccs import Server, Player
 from pyccs.protocol.base import *
@@ -73,7 +74,7 @@ async def client_handshake(server: Server, player: Player):
         player.drop("Could not authenticate user.")
         return
     await player.send_packet(server._ident)
-    await server.map.send_level(player)
+    await server.send_level(player)
     await server.relay_players(player)
 
 
@@ -94,7 +95,7 @@ async def server_loop(server: Server):
             await server.relay_to_others(player, packet)
         elif packet_id == 0x05:
             block_id = packet.block_id if packet.mode == 1 else 0
-            server.map.set_block(packet.position, block_id)
+            server.level.set_block(packet.position, block_id)
             set_packet = SERVER_SET_BLOCK.to_packet(
                 position=packet.position,
                 block_id=block_id
