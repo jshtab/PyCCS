@@ -58,7 +58,7 @@ class Map:
         self.size = Position(100, 9, 100)
 
     def set_block(self, position: Position, block_id: int):
-        index = 3+position.x + (position.z * self.size.x) + ((self.size.x * self.size.z) * position.y)
+        index = 4+position.x + (position.z * self.size.x) + ((self.size.x * self.size.z) * position.y)
         self.data[index] = block_id
 
     async def send_level(self, to: Player):
@@ -77,16 +77,6 @@ class Map:
         await to.send_packet(finalize)
 
 
-class ServerRunner(Thread):
-    def __init__(self, server):
-        self.server = server
-        super().__init__()
-
-    def run(self) -> None:
-        from pyccs.server import main
-        run(main(self.server), debug=True)
-
-
 class Server:
     def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565,
                  verify_names: bool = True):
@@ -97,7 +87,6 @@ class Server:
         self.salt = ''.join(choice(ascii_letters + digits) for x in range(32))
         self.map = Map("superflat.bin")
         self._running = False
-        self._runner = None
         self._queue = None
         self._players = {}
         self._ident = SERVER_IDENTIFICATION.to_packet(
@@ -115,17 +104,18 @@ class Server:
 
     def start(self):
         self._running = True
-        self._runner = ServerRunner(self)
-        self._runner.start()
+        from pyccs.server import main
+        run(main(self))
 
     def stop(self):
         self._running = False
 
     async def relay_players(self, to: Player):
         for _, player in self._players.items():
-            spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name,
-                                                  position=player.position)
-            await to.send_packet(spawn_packet)
+            if player:
+                spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name,
+                                                      position=player.position)
+                await to.send_packet(spawn_packet)
 
     async def incoming_packet(self, incoming_packet: Tuple[Player, Packet]):
         await self._queue.put(incoming_packet)
