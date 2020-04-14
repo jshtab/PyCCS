@@ -1,6 +1,12 @@
 # PyCCS
 
-**P**ython **C**lassi**C**ube **S**erver is a simple, cross-platform
+[![PyPI](https://img.shields.io/pypi/v/PyCCS)](https://pypi.org/project/PyCCS/)
+![PyPI - Status](https://img.shields.io/pypi/status/PyCCS)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/PyCCS)
+![PyPI - Downloads](https://img.shields.io/pypi/dw/PyCCS)
+![PyPI - License](https://img.shields.io/pypi/l/PyCCS)
+
+**Py**thon **C**lassi**C**ube **S**erver is a simple, cross-platform
 and extendable server for [ClassiCube](http://www.classicube.net).
 
 **THIS PROJECT IS CURRENTLY IN ALPHA AND MAY SUFFER FROM SERIOUS FLAWS
@@ -11,7 +17,7 @@ OR BUGS. I PROBABLY KNOW ABOUT MOST, AND THEY PROBABLY WILL GET FIXED.**
 The following needs to be finished in order for the project to
 get out of alpha:
 
-- [ ] Functional server (blocks and messages get relayed)
+- [x] Functional server (blocks and messages get relayed)
 - [ ] Load map from file
 - [ ] Administrative system (barebones; op, ban, kick)
 - [x] Basic account authentication (thru classicube.net)
