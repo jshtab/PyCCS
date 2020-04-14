@@ -4,10 +4,10 @@
 #  https://opensource.org/licenses/ISC
 
 import asyncio
-from threading import Thread
+
 from pyccs import Server, Player
 from pyccs.protocol.base import *
-from pyccs.protocol import Packet, Position
+from pyccs.protocol import Packet
 
 
 async def send_packet_now(writer: asyncio.StreamWriter, packet: Packet):

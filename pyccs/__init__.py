@@ -6,22 +6,20 @@
 Python ClassiCube Server is a simple, cross-platform and extendable server for ClassiCube.
 """
 
-import logging
+import hashlib
 import nbtlib
-from random import choice
-from string import ascii_letters, digits
-from hashlib import md5
-from pyccs.protocol import Packet, Position, PacketInfo
+import random
+import string
+import asyncio
+import gzip
+
+from pyccs.constants import *
+from pyccs.protocol import *
 from pyccs.protocol.base import *
-from pyccs.constants import VERSION
-from asyncio import Queue, run
-from typing import Tuple
-from threading import Thread
-from gzip import compress
 
 
 class Player:
-    def __init__(self, outgoing_queue: Queue):
+    def __init__(self, outgoing_queue: asyncio.Queue):
         self.name = None
         self.mp_pass = None
         self.player_id = None
@@ -34,7 +32,7 @@ class Player:
 
     def authenticated(self, salt: str) -> bool:
         expected = salt + self.name
-        expected_hash = md5(expected.encode(encoding="ascii")).hexdigest()
+        expected_hash = hashlib.md5(expected.encode(encoding="ascii")).hexdigest()
         return expected_hash == self.mp_pass
 
     def init(self, player_ident: Packet):
@@ -80,7 +78,7 @@ class Map:
     async def send_level(self, to: Player):
         await to.send_signal(INITIALIZE_LEVEL)
         data = self.volume.to_bytes(4, byteorder="big")+bytes(self.data)
-        compressed = compress(data)
+        compressed = gzip.compress(data)
         compressed_size = len(compressed)
         for i in range(0, compressed_size, 1024):
             data = compressed[i:i + 1024]
@@ -101,7 +99,7 @@ class Server:
         self.motd = motd
         self.port = port
         self.verify_names = verify_names
-        self.salt = ''.join(choice(ascii_letters + digits) for x in range(32))
+        self.salt = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(32))
         self.map = Map(map)
         self._running = False
         self._queue = None
@@ -122,7 +120,7 @@ class Server:
     def start(self):
         self._running = True
         from pyccs.server import main
-        run(main(self))
+        asyncio.run(main(self))
 
     def stop(self):
         self._running = False

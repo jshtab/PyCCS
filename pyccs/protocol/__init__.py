@@ -4,9 +4,10 @@
 #  https://opensource.org/licenses/ISC
 """This module provides packet parsing utilities for the Classic Protocol, and the CPE."""
 
+import math
+
 from typing import List, Tuple, Any, Optional
 from pyccs.constants import DataType
-from math import trunc
 
 
 class Position:
@@ -35,11 +36,11 @@ class Position:
 
     def __trunc__(self):
         return Position(
-            x=trunc(self.x),
-            y=trunc(self.y),
-            z=trunc(self.z),
-            yaw=trunc((self.yaw*255)/360),
-            pitch=trunc((self.pitch*255)/360)
+            x=math.trunc(self.x),
+            y=math.trunc(self.y),
+            z=math.trunc(self.z),
+            yaw=math.trunc((self.yaw*255)/360),
+            pitch=math.trunc((self.pitch*255)/360)
         )
 
     def __add__(self, other):
@@ -99,11 +100,11 @@ class DataPacker:
         if data_type == DataType.STRING:
             value = bytes(value.ljust(64), encoding="ascii")
         elif data_type == DataType.COARSE_VECTOR:
-            value = trunc(value)
+            value = math.trunc(value)
             self.data += data_type.value.pack(*value)
             return
         elif data_type == DataType.FINE_VECTOR:
-            value = trunc(value * 32)
+            value = math.trunc(value * 32)
             self.data += data_type.value.pack(*(value.to_list(True)))
             return
         self.data += data_type.value.pack(value)
