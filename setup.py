@@ -18,6 +18,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/jshtab/PyCCS",
     packages=setuptools.find_packages(),
+    install_requires=[
+        'nbtlib>=1.6.5,<2',
+    ],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3",

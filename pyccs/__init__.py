@@ -7,6 +7,7 @@ Python ClassiCube Server is a simple, cross-platform and extendable server for C
 """
 
 import logging
+import nbtlib
 from random import choice
 from string import ascii_letters, digits
 from hashlib import md5
@@ -53,17 +54,33 @@ class Player:
 
 class Map:
     def __init__(self, file_name: str):
-        with open(file_name, "rb") as file:
-            self.data = bytearray(file.read())
-        self.size = Position(100, 9, 100)
+        with nbtlib.load(file_name) as level:
+            root = level.get("ClassicWorld")
+            self.data = bytearray(root.get("BlockArray"))
+            self.size = Position(
+                root.get("X"),
+                root.get("Y"),
+                root.get("Z")
+            )
+            spawn = root.get("Spawn")
+            self.spawn = Position(
+                spawn.get("X"),
+                spawn.get("Y"),
+                spawn.get("Z"),
+                spawn.get("H"),
+                spawn.get("P")
+            )
+            self.volume = self.size.x*self.size.y*self.size.z
 
     def set_block(self, position: Position, block_id: int):
         index = 4+position.x + (position.z * self.size.x) + ((self.size.x * self.size.z) * position.y)
-        self.data[index] = block_id
+        if index < len(self.data):
+            self.data[index] = block_id
 
     async def send_level(self, to: Player):
         await to.send_signal(INITIALIZE_LEVEL)
-        compressed = compress(bytes(self.data))
+        data = self.volume.to_bytes(4, byteorder="big")+bytes(self.data)
+        compressed = compress(data)
         compressed_size = len(compressed)
         for i in range(0, compressed_size, 1024):
             data = compressed[i:i + 1024]
@@ -79,13 +96,13 @@ class Map:
 
 class Server:
     def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565,
-                 verify_names: bool = True):
+                 verify_names: bool = True, map: str = "level.cw"):
         self.name = name
         self.motd = motd
         self.port = port
         self.verify_names = verify_names
         self.salt = ''.join(choice(ascii_letters + digits) for x in range(32))
-        self.map = Map("superflat.bin")
+        self.map = Map(map)
         self._running = False
         self._queue = None
         self._players = {}
@@ -128,7 +145,7 @@ class Server:
                 break
         spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name, position=player.position)
         await self.relay_to_others(player, spawn_packet)
-        own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=player.position)
+        own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.map.spawn)
         await player.send_packet(own_packet)
         await self.chat_all(f"{player.name} joined")
 
