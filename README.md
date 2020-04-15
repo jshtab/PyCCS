@@ -18,7 +18,7 @@ The following needs to be finished in order for the project to
 get out of alpha:
 
 - [x] Functional server (blocks and messages get relayed)
-- [ ] Load map from file
+- [x] Load map from file
 - [ ] Administrative system (barebones; op, ban, kick)
 - [x] Basic account authentication (thru classicube.net)
 - [ ] Some sort of testing, and contribution guidelines.

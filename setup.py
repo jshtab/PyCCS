@@ -10,7 +10,7 @@ with open("README.md", "r") as readme:
 
 setuptools.setup(
     name="PyCCS",
-    version="0.1.0",
+    version="0.2.0",
     author="Jacob Shtabnoy",
     author_email="shtabnoyjacob@scps.net",
     description="A simple and extendable ClassiCube server",
@@ -23,7 +23,7 @@ setuptools.setup(
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: ISC License (ISCL)",
         "Operating System :: OS Independent",
     ],
