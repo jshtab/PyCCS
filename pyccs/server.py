@@ -4,11 +4,169 @@
 #  https://opensource.org/licenses/ISC
 
 import asyncio
-import gzip
+import hashlib
+import nbtlib
+import random
+import string
 
-from pyccs import Server, Player
+from pyccs.constants import *
+from pyccs.protocol import *
 from pyccs.protocol.base import *
-from pyccs.protocol import Packet
+
+
+class Player:
+    def __init__(self, outgoing_queue: asyncio.Queue):
+        self.name = None
+        self.mp_pass = None
+        self.player_id = None
+        self.position = Position()
+        self.__outgoing_queue = outgoing_queue
+        self.__drop = None
+
+    def dropped(self):
+        return self.__drop
+
+    def authenticated(self, salt: str) -> bool:
+        expected = salt + self.name
+        expected_hash = hashlib.md5(expected.encode(encoding="ascii")).hexdigest()
+        return expected_hash == self.mp_pass
+
+    def init(self, player_ident: Packet):
+        self.name = player_ident.username
+        self.mp_pass = player_ident.mp_pass
+
+    async def send_packet(self, packet: Packet):
+        await self.__outgoing_queue.put(packet)
+
+    async def send_signal(self, packet_data: PacketInfo):
+        packet = packet_data.to_packet()
+        await self.__outgoing_queue.put(packet)
+
+    def drop(self, reason: str):
+        self.__drop = reason
+
+
+class Map:
+    def __init__(self, file_name: str):
+        with nbtlib.load(file_name) as level:
+            root = level.get("ClassicWorld")
+            self.data = bytearray(root.get("BlockArray"))
+            self.size = Position(
+                root.get("X"),
+                root.get("Y"),
+                root.get("Z")
+            )
+            spawn = root.get("Spawn")
+            self.spawn = Position(
+                spawn.get("X"),
+                spawn.get("Y"),
+                spawn.get("Z"),
+                spawn.get("H"),
+                spawn.get("P")
+            )
+            self.volume = self.size.x*self.size.y*self.size.z
+
+    def set_block(self, position: Position, block_id: int):
+        index = 4+position.x + (position.z * self.size.x) + ((self.size.x * self.size.z) * position.y)
+        if index < len(self.data):
+            self.data[index] = block_id
+
+
+class Server:
+    def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565,
+                 verify_names: bool = True, level: str = "level.cw"):
+        self.name = name
+        self.motd = motd
+        self.port = port
+        self.verify_names = verify_names
+        self.salt = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(32))
+        self.level = Map(level)
+        self._callbacks = {}
+        self._running = False
+        self._queue = None
+        self._players = {}
+
+    def __str__(self):
+        return f"'{self.name}' on port {self.port} ({'running' if self._running else 'stopped'})"
+
+    def running(self):
+        return self._running
+
+    def load_plugin(self, plugin):
+        for callback_id, callback in plugin.callbacks.items():
+            if not self._callbacks.get(callback_id):
+                self._callbacks[callback_id] = []
+            self._callbacks[callback_id].append(callback)
+
+    def start(self):
+        self._running = True
+        asyncio.run(self._bootstrap())
+
+    def stop(self):
+        self._running = False
+
+    async def _run_callbacks(self, callback_id, extra):
+        for callback in self._callbacks[callback_id]:
+            await callback(self, extra)
+
+    async def incoming_packet(self, incoming_packet: Tuple[Player, Packet]):
+        await self._queue.put(incoming_packet)
+
+    async def add_player(self, player: Player):
+        for player_id in range(0, 128):
+            if not self._players.get(player_id):
+                self._players[player_id] = player
+                player.player_id = player_id
+                break
+        spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name, position=player.position)
+        await self.relay_to_others(player, spawn_packet)
+        own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.level.spawn)
+        await player.send_packet(own_packet)
+        await self.announce(f"{player.name} joined")
+
+    async def relay_to_all(self, sender: Player, packet: Packet):
+        packet.player_id = sender.player_id
+        for _, player in self._players.items():
+            if player:
+                await player.send_packet(packet)
+
+    async def relay_to_others(self, sender: Player, packet: Packet):
+        packet.player_id = sender.player_id
+        for _, player in self._players.items():
+            if player != sender and player:
+                await player.send_packet(packet)
+
+    async def announce(self, message: str):
+        packet = CHAT_MESSAGE.to_packet(message=message, player_id=-1)
+        for _, player in self._players.items():
+            if player:
+                await player.send_packet(packet)
+
+    async def remove_player(self, player: Player, reason: str = "Kicked from server"):
+        self._players[player.player_id] = None
+        player.drop(reason)
+        packet = DESPAWN_PLAYER.to_packet(player_id=player.player_id)
+        await self.relay_to_others(player, packet)
+        await self.announce(f"{player.name} left")
+
+    async def _loop(self):
+        queue = asyncio.Queue()
+        self._queue = queue
+        while True:
+            incoming = await queue.get()
+            player = incoming[0]
+            packet = incoming[1]
+            packet_id = packet.packet_id()
+            await self._run_callbacks(packet_id, incoming)
+
+    async def _bootstrap(self):
+        tcp_server = await start_server(self, self.port)
+        srv_loop = await asyncio.create_task(self._loop())
+        while self.running():
+            await asyncio.sleep(15)
+        srv_loop.cancel()
+        tcp_server.close()
+        await tcp_server.wait_closed()
 
 
 async def send_packet_now(writer: asyncio.StreamWriter, packet: Packet):
@@ -50,7 +208,7 @@ async def client_connection(server: Server, reader: asyncio.StreamReader, writer
         if incoming.done() or outgoing.done():
             incoming.cancel()
             outgoing.cancel()
-            await server.disconnect(player, "Socket manager failure; rejoin")
+            await server.remove_player(player, "Socket manager failure; rejoin")
             break
         if reason := player.dropped():
             incoming.cancel()
@@ -60,57 +218,9 @@ async def client_connection(server: Server, reader: asyncio.StreamReader, writer
             break
         await asyncio.sleep(1)
         await player.send_signal(PING)
-    del player
 
 
 async def start_server(server: Server, port: int):
     tcp_server = await asyncio.start_server(lambda r, w: client_connection(server, r, w), host="localhost", port=port)
     await tcp_server.start_serving()
     return tcp_server
-
-
-async def client_handshake(server: Server, player: Player):
-    if server.verify_names and not player.authenticated(server.salt):
-        player.drop("Could not authenticate user.")
-        return
-    await player.send_packet(server._ident)
-    await server.send_level(player)
-    await server.relay_players(player)
-
-
-async def server_loop(server: Server):
-    queue = asyncio.Queue()
-    server._queue = queue
-    while True:
-        incoming = await queue.get()
-        player = incoming[0]
-        packet = incoming[1]
-        packet_id = packet.packet_id()
-        if packet_id == 0x00:
-            player.init(packet)
-            await client_handshake(server, player)
-            await server.add_player(player)
-        elif packet_id == 0x08:
-            player.position = packet.position
-            await server.relay_to_others(player, packet)
-        elif packet_id == 0x05:
-            block_id = packet.block_id if packet.mode == 1 else 0
-            server.level.set_block(packet.position, block_id)
-            set_packet = SERVER_SET_BLOCK.to_packet(
-                position=packet.position,
-                block_id=block_id
-            )
-            await server.relay_to_all(player, set_packet)
-        elif packet_id == 0x0d:
-            packet.message = f"{player.name}: {packet.message}"
-            await server.relay_to_all(player, packet)
-
-
-async def main(server: Server):
-    tcp_server = await start_server(server, server.port)
-    srv_loop = await asyncio.create_task(server_loop(server))
-    while server.running():
-        await asyncio.sleep(15)
-    srv_loop.cancel()
-    tcp_server.close()
-    await tcp_server.wait_closed()
