@@ -11,43 +11,44 @@ from pyccs.plugin import Plugin
 from pyccs.server import Server, Player, Map
 from pyccs.protocol.base import *
 
-BasePlugin = Plugin()
+BasePlugin = Plugin("BasePlugin")
 _thread_pool = futures.ThreadPoolExecutor(max_workers=3)
 
 
-@BasePlugin.callback(callback_id=0x0d)
-async def handle_chat(server, incoming_packet):
-    player = incoming_packet[0]
-    packet = incoming_packet[1]
-    packet.message = f"{player.name}: {packet.message}"
-    await server.relay_to_all(player, packet)
+@BasePlugin.on_packet(0x0d)
+async def handle_chat(server, player, packet):
+    formatted_message = f"{player.name}: {packet.message}"
+    print(formatted_message)
+    if packet.message.startswith("/"):
+        args = packet.message.split()
+        await server.run_callbacks(f"SERVER/COMMAND{args[0]}", player, *args[1:])
+    else:
+        message_packet = CHAT_MESSAGE.to_packet(
+            message=formatted_message
+        )
+        await server.relay_to_all(player, message_packet)
 
 
-@BasePlugin.callback(callback_id=0x05)
-async def update_block(server, incoming_packet):
-    player = incoming_packet[0]
-    packet = incoming_packet[1]
+@BasePlugin.on_packet(0x05)
+async def update_block(server,  player, packet):
     block_id = packet.block_id if packet.mode == 1 else 0
-    server.level.set_block(packet.position, block_id)
+    position = packet.position
+    server.level.set_block(position, block_id)
     set_packet = SERVER_SET_BLOCK.to_packet(
-        position=packet.position,
+        position=position,
         block_id=block_id
     )
     await server.relay_to_all(player, set_packet)
 
 
-@BasePlugin.callback(callback_id=0x08)
-async def update_player_position(server, incoming_packet):
-    player = incoming_packet[0]
-    packet = incoming_packet[1]
+@BasePlugin.on_packet(0x08)
+async def update_player_position(server,  player, packet):
     player.position = packet.position
     await server.relay_to_others(player, packet)
 
 
-@BasePlugin.callback(callback_id=0x00)
-async def player_handshake(server, incoming_packet):
-    player = incoming_packet[0]
-    packet = incoming_packet[1]
+@BasePlugin.on_packet(0x00)
+async def player_handshake(server,  player, packet):
     player.init(packet)
     success = await _begin_handshake(server, player)
     if success:

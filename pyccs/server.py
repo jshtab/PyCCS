@@ -42,6 +42,10 @@ class Player:
         packet = packet_data.to_packet()
         await self.__outgoing_queue.put(packet)
 
+    async def send_message(self, message):
+        packet = CHAT_MESSAGE.to_packet(message=message, player_id=-1)
+        await self.__outgoing_queue.put(packet)
+
     def drop(self, reason: str):
         self.__drop = reason
 
@@ -67,7 +71,7 @@ class Map:
             self.volume = self.size.x*self.size.y*self.size.z
 
     def set_block(self, position: Position, block_id: int):
-        index = 4+position.x + (position.z * self.size.x) + ((self.size.x * self.size.z) * position.y)
+        index = position.x + (position.z * self.size.x) + ((self.size.x * self.size.z) * position.y)
         if index < len(self.data):
             self.data[index] = block_id
 
@@ -81,7 +85,7 @@ class Server:
         self.verify_names = verify_names
         self.salt = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(32))
         self.level = Map(level)
-        self._callbacks = {}
+        self._plugins = {}
         self._running = False
         self._queue = None
         self._players = {}
@@ -93,10 +97,7 @@ class Server:
         return self._running
 
     def load_plugin(self, plugin):
-        for callback_id, callback in plugin.callbacks.items():
-            if not self._callbacks.get(callback_id):
-                self._callbacks[callback_id] = []
-            self._callbacks[callback_id].append(callback)
+        self._plugins[plugin.name] = plugin
 
     def start(self):
         self._running = True
@@ -105,9 +106,9 @@ class Server:
     def stop(self):
         self._running = False
 
-    async def _run_callbacks(self, callback_id, extra):
-        for callback in self._callbacks[callback_id]:
-            await callback(self, extra)
+    async def run_callbacks(self, callback_id, *args):
+        for name, plugin in self._plugins.items():
+            await plugin.run_callbacks(self, callback_id, args)
 
     async def incoming_packet(self, incoming_packet: Tuple[Player, Packet]):
         await self._queue.put(incoming_packet)
@@ -118,6 +119,7 @@ class Server:
                 self._players[player_id] = player
                 player.player_id = player_id
                 break
+        await self.run_callbacks("SERVER/NEW_PLAYER")
         spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name, position=player.position)
         await self.relay_to_others(player, spawn_packet)
         own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.level.spawn)
@@ -143,21 +145,23 @@ class Server:
                 await player.send_packet(packet)
 
     async def remove_player(self, player: Player, reason: str = "Kicked from server"):
-        self._players[player.player_id] = None
+        self._players.pop(player.player_id, None)
         player.drop(reason)
         packet = DESPAWN_PLAYER.to_packet(player_id=player.player_id)
+        await self.run_callbacks("SERVER/KICK")
         await self.relay_to_others(player, packet)
         await self.announce(f"{player.name} left")
 
     async def _loop(self):
         queue = asyncio.Queue()
         self._queue = queue
+        await self.run_callbacks("SERVER/START")
         while True:
             incoming = await queue.get()
             player = incoming[0]
             packet = incoming[1]
             packet_id = packet.packet_id()
-            await self._run_callbacks(packet_id, incoming)
+            await self.run_callbacks(packet_id, player, packet)
 
     async def _bootstrap(self):
         tcp_server = await start_server(self, self.port)
@@ -166,6 +170,7 @@ class Server:
             await asyncio.sleep(15)
         srv_loop.cancel()
         tcp_server.close()
+        await self.run_callbacks("SERVER/SHUTDOWN")
         await tcp_server.wait_closed()
 
 
