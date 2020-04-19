@@ -30,7 +30,7 @@ async def handle_chat(server, player, packet):
 
 
 @BasePlugin.on_packet(0x05)
-async def update_block(server,  player, packet):
+async def update_block(server, player, packet):
     block_id = packet.block_id if packet.mode == 1 else 0
     position = packet.position
     server.level.set_block(position, block_id)

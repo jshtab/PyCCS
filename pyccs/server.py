@@ -119,7 +119,7 @@ class Server:
                 self._players[player_id] = player
                 player.player_id = player_id
                 break
-        await self.run_callbacks("SERVER/NEW_PLAYER")
+        await self.run_callbacks("SERVER/NEW_PLAYER", player)
         spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name, position=player.position)
         await self.relay_to_others(player, spawn_packet)
         own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.level.spawn)
@@ -148,7 +148,7 @@ class Server:
         self._players.pop(player.player_id, None)
         player.drop(reason)
         packet = DESPAWN_PLAYER.to_packet(player_id=player.player_id)
-        await self.run_callbacks("SERVER/KICK")
+        await self.run_callbacks("SERVER/KICK", player)
         await self.relay_to_others(player, packet)
         await self.announce(f"{player.name} left")
 

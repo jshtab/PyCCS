@@ -31,6 +31,15 @@ class Position:
             result += [self.yaw, self.pitch]
         return result
 
+    def __eq__(self, other):
+        return (
+            self.x == other.y and
+            self.z == other.z and
+            self.y == other.y and
+            self.yaw == other.yaw and
+            self.pitch == other.pitch
+        )
+
     def __iter__(self):
         return iter(self.to_list())
 

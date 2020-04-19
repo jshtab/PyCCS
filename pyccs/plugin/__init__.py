@@ -3,6 +3,8 @@
 #  If the LICENSE file was not provided, you can find the full text of the license here:
 #  https://opensource.org/licenses/ISC
 
+from pyccs.protocol import Position
+
 
 class Plugin:
     def __init__(self, name):
@@ -33,3 +35,26 @@ class Plugin:
 
     def on_start(self):
         return self.callback("SERVER/START")
+
+    def on_shutdown(self):
+        return self.callback("SERVER/SHUTDOWN")
+
+    def on_player_added(self):
+        return self.callback("SERVER/NEW_PLAYER")
+
+    def on_player_removed(self):
+        return self.callback("SERVER/KICK")
+
+    def on_block(self, block_id: int = -1, position: Position = None):
+        def inner(func):
+            async def check(server, player, packet):
+                block = packet.block_id
+                place_position = packet.position
+                if block_id != -1 and block != block_id:
+                    return
+                if position and place_position != position:
+                    return
+                await func(server, player, block, place_position)
+            self._add_callback(0x05, check)
+            return func
+        return inner
