@@ -3,22 +3,29 @@
 #  If the LICENSE file was not provided, you can find the full text of the license here:
 #  https://opensource.org/licenses/ISC
 
+import logging
+
 from pyccs.protocol import Position
 
 
 class Plugin:
     def __init__(self, name):
         self.name = name
-        self._callbacks = {}
+        self.__callbacks = {}
+        self.__logger = None
+
+    def initialize(self, parent_logger: logging.Logger):
+        self.__logger = parent_logger.getChild(self.name)
+        self.__logger.info(f"Initialized plugin {self.name}")
 
     def _add_callback(self, callback_id, func):
-        callback = self._callbacks.get(callback_id, None)
+        callback = self.__callbacks.get(callback_id, None)
         if not callback:
-            self._callbacks[callback_id] = []
-        self._callbacks[callback_id].append(func)
+            self.__callbacks[callback_id] = []
+        self.__callbacks[callback_id].append(func)
 
     async def run_callbacks(self, server, callback_id, args: tuple):
-        for callback in self._callbacks.get(callback_id, []):
+        for callback in self.__callbacks.get(callback_id, []):
             await callback(server, *args)
 
     def callback(self, callback_id):
