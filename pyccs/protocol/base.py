@@ -148,6 +148,16 @@ DISCONNECT = PacketInfo(
 """Disconnect Player Packet ( Server -> Client; ID 0x0e; Base Protocol )"""
 
 
+UPDATE_MODE = PacketInfo(
+    packet_id=0x0f,
+    size=1,
+    byte_map=[
+        (DataType.BYTE, "mode")
+    ]
+)
+"""Update Op Mode ( Server -> Client; ID 0x0f; Base Protocol )"""
+
+
 PARSEABLES = {
     0x00: PLAYER_IDENTIFICATION,
     0x05: CLIENT_SET_BLOCK,

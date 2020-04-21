@@ -63,7 +63,7 @@ async def _begin_handshake(server, player) -> bool:
             version=7,
             name=server.name,
             motd=server.motd,
-            user_type=0
+            user_type=0x64 if player.is_op else 0x00
         )
     await player.send_packet(ident_packet)
     await _send_level(server, player)

@@ -22,11 +22,19 @@ class Player:
         self.mp_pass = None
         self.player_id = None
         self.position = Position()
+        self.is_op = False
         self.__outgoing_queue = outgoing_queue
         self.__drop = None
 
     def __str__(self):
-        return f'{self.name}@{self.ip}'
+        return f'{"#" if self.is_op else ""}{self.name}@{self.ip}'
+
+    async def set_op(self, new):
+        update_packet = UPDATE_MODE.to_packet(
+            mode=0x64 if new else 0x00
+        )
+        self.is_op = new
+        await self.send_packet(update_packet)
 
     def dropped(self):
         return self.__drop
