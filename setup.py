@@ -10,7 +10,7 @@ with open("README.md", "r") as readme:
 
 setuptools.setup(
     name="PyCCS",
-    version="0.2.0",
+    version="0.3.0",
     author="Jacob Shtabnoy",
     author_email="shtabnoyjacob@scps.net",
     description="A simple and extendable ClassiCube server",

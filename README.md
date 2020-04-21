@@ -28,7 +28,7 @@ to get out of beta:
 
 - [ ] Full CPE Support (this will become its own to-do list later)
 - [ ] Multiple Map Support
-- [ ] Plugin API
+- [x] Plugin API
 - [ ] Base Plugins (admin, fun, mail, see MCGalaxy's command set
   for reference.)
 
