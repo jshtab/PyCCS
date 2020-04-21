@@ -18,7 +18,7 @@ _thread_pool = futures.ThreadPoolExecutor(max_workers=3)
 @BasePlugin.on_packet(0x0d)
 async def handle_chat(server, player, packet):
     formatted_message = f"{player.name}: {packet.message}"
-    print(formatted_message)
+    BasePlugin.get_logger(server).info(formatted_message)
     if packet.message.startswith("/"):
         args = packet.message.split()
         await server.run_callbacks(f"SERVER/COMMAND{args[0]}", player, *args[1:])

@@ -80,19 +80,19 @@ class Map:
 class Server:
     def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565, *,
                  verify_names: bool = True, level: str = "level.cw",
-                 logger: logging.Logger = logging.getLogger(__name__), ignore_exceptions: bool = False):
+                 logger: logging.Logger = None, ignore_exceptions: bool = False):
         self.name = name
         self.motd = motd
         self.port = port
         self.verify_names = verify_names
         self.ignore_exceptions = ignore_exceptions
         self.salt = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(32))
+        self.logger = logger if logger else logging.getLogger(f"pyccs-{port}")
         self.level = Map(level)
         self._plugins = {}
         self._running = False
         self._queue = None
         self._players = {}
-        self.__logger = logger
 
     def __str__(self):
         return f"'{self.name}' on port {self.port} ({'running' if self._running else 'stopped'})"
@@ -101,18 +101,17 @@ class Server:
         return self._running
 
     def load_plugin(self, plugin):
-        plugin.initialize(self.__logger)
         self._plugins[plugin.name] = plugin
 
     def start(self):
-        self.__logger.info(f"Starting server: {self}")
+        self.logger.info(f"Starting server: {self}")
         self._running = True
         if not self.verify_names:
-            self.__logger.warning(VERIFY_WARNING % self)
+            self.logger.warning(VERIFY_WARNING % self)
         asyncio.run(self._bootstrap())
 
     def stop(self, *args):
-        self.__logger.info(f"Stopping server: {self}")
+        self.logger.info(f"Stopping server: {self}")
         self._running = False
 
     async def run_callbacks(self, callback_id, *args):
@@ -134,7 +133,7 @@ class Server:
         own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.level.spawn)
         await player.send_packet(own_packet)
         await self.announce(f"{player.name} joined")
-        self.__logger.info(f"Added player {player.name} ({player.player_id})")
+        self.logger.info(f"Added player {player.name} ({player.player_id})")
 
     async def relay_to_all(self, sender: Player, packet: Packet):
         packet.player_id = sender.player_id
@@ -161,14 +160,14 @@ class Server:
         await self.run_callbacks("SERVER/KICK", player)
         await self.relay_to_others(player, packet)
         await self.announce(f"{player.name} left ({reason})")
-        self.__logger.info(f"Removed player {player.name} ({reason})")
+        self.logger.info(f"Removed player {player.name} ({reason})")
 
     async def _loop(self):
-        self.__logger.debug("Server loop started")
+        self.logger.debug("Server loop started")
         queue = asyncio.Queue()
         self._queue = queue
         await self.run_callbacks("SERVER/START")
-        self.__logger.info(f"Started server: {self}")
+        self.logger.info(f"Started server: {self}")
         while self._running:
             try:
                 incoming = await queue.get()
@@ -177,27 +176,28 @@ class Server:
                 packet_id = packet.packet_id()
                 await self.run_callbacks(packet_id, player, packet)
             except asyncio.CancelledError:
-                self.__logger.debug("Server loop cancelled")
+                self.logger.debug("Server loop cancelled")
             except:
-                self.__logger.exception("Exception occurred in main loop")
-                continue
+                self.logger.exception("Exception occurred in main loop")
+                if self.ignore_exceptions:
+                    continue
 
     async def _bootstrap(self):
-        self.__logger.debug("Starting TCP Server")
+        self.logger.debug("Starting TCP Server")
         tcp_server = await start_server(self, self.port)
-        self.__logger.debug("Starting Server Loop")
+        self.logger.debug("Starting Server Loop")
         srv_loop = asyncio.create_task(self._loop())
         while self._running:
             await asyncio.sleep(4)
-        self.__logger.debug("Beginning shutdown process")
+        self.logger.debug("Beginning shutdown process")
         await self.run_callbacks("SERVER/SHUTDOWN")
-        self.__logger.debug("Cancelling server loop")
+        self.logger.debug("Cancelling server loop")
         srv_loop.cancel()
-        self.__logger.debug("Closing TCP Server")
+        self.logger.debug("Closing TCP Server")
         tcp_server.close()
         await tcp_server.wait_closed()
-        self.__logger.debug("TCP Server Closed")
-        self.__logger.info("Shutdown tasks finished")
+        self.logger.debug("TCP Server Closed")
+        self.logger.info("Shutdown tasks finished")
 
 
 async def send_packet_now(writer: asyncio.StreamWriter, packet: Packet):
@@ -239,7 +239,7 @@ async def client_connection(server: Server, reader: asyncio.StreamReader, writer
         if incoming.done() or outgoing.done():
             incoming.cancel()
             outgoing.cancel()
-            await server.remove_player(player, "Socket manager failure; rejoin")
+            await server.remove_player(player, "Connection closed")
             break
         if reason := player.dropped():
             incoming.cancel()

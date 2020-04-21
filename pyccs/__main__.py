@@ -13,7 +13,7 @@ def setup_logger():
     fh.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('[{name}/{levelname}] {message}', style="{")
+    formatter = logging.Formatter('[{asctime}-{name}/{levelname}] {message}', style="{")
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
     logger.addHandler(fh)

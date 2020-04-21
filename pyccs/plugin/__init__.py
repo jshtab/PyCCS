@@ -12,11 +12,9 @@ class Plugin:
     def __init__(self, name):
         self.name = name
         self.__callbacks = {}
-        self.__logger = None
 
-    def initialize(self, parent_logger: logging.Logger):
-        self.__logger = parent_logger.getChild(self.name)
-        self.__logger.info(f"Initialized plugin {self.name}")
+    def get_logger(self, server):
+        return server.logger.getChild(self.name)
 
     def _add_callback(self, callback_id, func):
         callback = self.__callbacks.get(callback_id, None)
