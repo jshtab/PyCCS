@@ -9,5 +9,12 @@ PyCCS.egg-info
 .vscode
 .idea
 
+# ClassiCube / PyCCS
+*.cw
+*.log
+
 # virtualenv
 .venv
+
+# pycache
+__pycache__

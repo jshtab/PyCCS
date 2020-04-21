@@ -11,7 +11,7 @@ from pyccs.plugin import Plugin
 from pyccs.server import Server, Player, Map
 from pyccs.protocol.base import *
 
-BasePlugin = Plugin("BasePlugin")
+BasePlugin = Plugin("ClassicServer")
 _thread_pool = futures.ThreadPoolExecutor(max_workers=3)
 
 

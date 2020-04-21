@@ -9,7 +9,7 @@ from pyccs.plugin.dice import DicePlugin
 def setup_logger():
     logger = logging.getLogger('PyCCS')
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler('last.log')
+    fh = logging.FileHandler('pyccs.log')
     fh.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
