@@ -16,13 +16,17 @@ from pyccs.protocol.base import *
 
 
 class Player:
-    def __init__(self, outgoing_queue: asyncio.Queue):
+    def __init__(self, ip, outgoing_queue: asyncio.Queue):
+        self.ip = ip
         self.name = None
         self.mp_pass = None
         self.player_id = None
         self.position = Position()
         self.__outgoing_queue = outgoing_queue
         self.__drop = None
+
+    def __str__(self):
+        return f'{self.name}@{self.ip}'
 
     def dropped(self):
         return self.__drop
@@ -78,11 +82,12 @@ class Map:
 
 
 class Server:
-    def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565, *,
+    def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565, ip: str = "0.0.0.0", *,
                  verify_names: bool = True, level: str = "level.cw",
                  logger: logging.Logger = None, ignore_exceptions: bool = False):
         self.name = name
         self.motd = motd
+        self.ip = ip
         self.port = port
         self.verify_names = verify_names
         self.ignore_exceptions = ignore_exceptions
@@ -95,7 +100,7 @@ class Server:
         self._players = {}
 
     def __str__(self):
-        return f"'{self.name}' on port {self.port} ({'running' if self._running else 'stopped'})"
+        return f"'{self.name}' on {self.ip}:{self.port} ({'running' if self._running else 'stopped'})"
 
     def running(self):
         return self._running
@@ -133,7 +138,7 @@ class Server:
         own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.level.spawn)
         await player.send_packet(own_packet)
         await self.announce(f"{player.name} joined")
-        self.logger.info(f"Added player {player.name} ({player.player_id})")
+        self.logger.info(f"Added player {player}")
 
     async def relay_to_all(self, sender: Player, packet: Packet):
         packet.player_id = sender.player_id
@@ -160,7 +165,7 @@ class Server:
         await self.run_callbacks("SERVER/KICK", player)
         await self.relay_to_others(player, packet)
         await self.announce(f"{player.name} left ({reason})")
-        self.logger.info(f"Removed player {player.name} ({reason})")
+        self.logger.info(f"Removed player {player} ({reason})")
 
     async def _loop(self):
         self.logger.debug("Server loop started")
@@ -184,7 +189,7 @@ class Server:
 
     async def _bootstrap(self):
         self.logger.debug("Starting TCP Server")
-        tcp_server = await start_server(self, self.port)
+        tcp_server = await start_server(self)
         self.logger.debug("Starting Server Loop")
         srv_loop = asyncio.create_task(self._loop())
         while self._running:
@@ -232,7 +237,8 @@ async def handle_incoming(server: Server, player: Player, reader: asyncio.Stream
 
 async def client_connection(server: Server, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     outgoing_queue = asyncio.Queue()
-    player = Player(outgoing_queue)
+    addr = writer.get_extra_info('peername')[0]
+    player = Player(addr, outgoing_queue)
     incoming = asyncio.create_task(handle_incoming(server, player, reader))
     outgoing = asyncio.create_task(handle_outgoing(writer, outgoing_queue))
     while True:
@@ -251,7 +257,8 @@ async def client_connection(server: Server, reader: asyncio.StreamReader, writer
         await player.send_signal(PING)
 
 
-async def start_server(server: Server, port: int):
-    tcp_server = await asyncio.start_server(lambda r, w: client_connection(server, r, w), host="localhost", port=port)
+async def start_server(server: Server):
+    tcp_server = await asyncio.start_server(lambda r, w: client_connection(server, r, w), host=server.ip,
+                                            port=server.port)
     await tcp_server.start_serving()
     return tcp_server
