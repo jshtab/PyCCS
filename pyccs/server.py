@@ -134,6 +134,15 @@ class Server:
     async def incoming_packet(self, incoming_packet: Tuple[Player, Packet]):
         await self._queue.put(incoming_packet)
 
+    def get_player(self, *, name: str = None, player_id: int = None):
+        if name:
+            for _,player in self._players.items():
+                if player.name == name:
+                    return player
+            return None
+        else:
+            return self._players.get(player_id, None)
+
     async def add_player(self, player: Player):
         for player_id in range(0, 128):
             if not self._players.get(player_id):
