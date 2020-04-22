@@ -24,7 +24,10 @@ class Plugin:
 
     async def run_callbacks(self, server, callback_id, args: tuple):
         for callback in self.__callbacks.get(callback_id, []):
-            await callback(server, *args)
+            try:
+                await callback(server, *args)
+            except:
+                self.get_logger(server).exception(f"Error occurred while running callback {callback}")
 
     def callback(self, callback_id):
         def inner(func):
@@ -35,20 +38,28 @@ class Plugin:
     def on_packet(self, packet_id):
         return self.callback(packet_id)
 
-    def on_command(self, command):
-        return self.callback(f"SERVER/COMMAND/{command}")
+    def on_command(self, command, op_only=False):
+        def inner(func):
+            async def check(server, player, *args):
+                if op_only and not player.is_op:
+                    await player.send_message("&cOnly operators can run this command.")
+                    return
+                await func(server, player, *args)
+            self._add_callback(f"SERVER/COMMAND/{command}", check)
+            return func
+        return inner
 
-    def on_start(self):
-        return self.callback("SERVER/START")
+    def on_start(self, func):
+        return self.callback("SERVER/START")(func)
 
-    def on_shutdown(self):
-        return self.callback("SERVER/SHUTDOWN")
+    def on_shutdown(self, func):
+        return self.callback("SERVER/SHUTDOWN")(func)
 
-    def on_player_added(self):
-        return self.callback("SERVER/NEW_PLAYER")
+    def on_player_added(self, func):
+        return self.callback("SERVER/NEW_PLAYER")(func)
 
-    def on_player_removed(self):
-        return self.callback("SERVER/KICK")
+    def on_player_removed(self, func):
+        return self.callback("SERVER/KICK")(func)
 
     def on_block(self, block_id: int = -1, position: Position = None):
         def inner(func):
