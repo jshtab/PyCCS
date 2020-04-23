@@ -149,13 +149,13 @@ class Server:
                 self._players[player_id] = player
                 player.player_id = player_id
                 break
-        await self.run_callbacks("SERVER/NEW_PLAYER", player)
         spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name, position=player.position)
         await self.relay_to_others(player, spawn_packet)
         own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=self.level.spawn)
         await player.send_packet(own_packet)
         await self.announce(f"{player.name} joined")
         self.logger.info(f"Added player {player}")
+        await self.run_callbacks("SERVER/NEW_PLAYER", player)
 
     async def relay_to_all(self, sender: Player, packet: Packet):
         packet.player_id = sender.player_id
@@ -256,6 +256,7 @@ async def client_connection(server: Server, reader: asyncio.StreamReader, writer
     outgoing_queue = asyncio.Queue()
     addr = writer.get_extra_info('peername')[0]
     player = Player(addr, outgoing_queue)
+    server.logger.debug(f"Incoming connection from {addr}")
     incoming = asyncio.create_task(handle_incoming(server, player, reader))
     outgoing = asyncio.create_task(handle_outgoing(writer, outgoing_queue))
     while True:
