@@ -20,8 +20,8 @@ async def handle_chat(server, player, packet):
     formatted_message = f"{player.name}: {packet.message}"
     BasePlugin.get_logger(server).info(formatted_message)
     if packet.message.startswith("/"):
-        args = packet.message.split()
-        await server.run_callbacks(f"SERVER/COMMAND{args[0]}", player, *args[1:])
+        args = packet.message[1:].split()
+        await server.run_command(player, args[0], args[1:])
     else:
         message_packet = CHAT_MESSAGE.to_packet(
             message=formatted_message

@@ -11,6 +11,7 @@ from pyccs.protocol import Position
 class Plugin:
     def __init__(self, name):
         self.name = name
+        self.commands = {}
         self.__callbacks = {}
 
     def get_logger(self, server):
@@ -38,14 +39,15 @@ class Plugin:
     def on_packet(self, packet_id):
         return self.callback(packet_id)
 
-    def on_command(self, command, op_only=False):
+    def on_command(self, *names, op_only=False):
         def inner(func):
             async def check(server, player, *args):
                 if op_only and not player.is_op:
                     await player.send_message("&cOnly operators can run this command.")
                     return
                 await func(server, player, *args)
-            self._add_callback(f"SERVER/COMMAND/{command}", check)
+            for name in names:
+                self.commands[name] = check
             return func
         return inner
 

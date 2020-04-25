@@ -103,6 +103,7 @@ class Server:
         self.logger = logger if logger else logging.getLogger(f"pyccs-{port}")
         self.level = Map(level)
         self._plugins = {}
+        self._commands = {}
         self._running = False
         self._queue = None
         self._players = {}
@@ -115,6 +116,12 @@ class Server:
 
     def load_plugin(self, plugin):
         self._plugins[plugin.name] = plugin
+        for name, command in plugin.commands.items():
+            if conflict := self._commands.get(name, None):
+                self.logger.warning(f"Command {name} in {command.__module__} conflicts with {conflict.__module__}")
+                continue
+            self._commands[name] = command
+        self.logger.info(f"Loaded {plugin}")
 
     def start(self):
         self.logger.info(f"Starting server: {self}")
@@ -130,6 +137,12 @@ class Server:
     async def run_callbacks(self, callback_id, *args):
         for name, plugin in self._plugins.items():
             await plugin.run_callbacks(self, callback_id, args)
+
+    async def run_command(self, player, name, args):
+        if command := self._commands.get(name, None):
+            await command(self, player, *args)
+        else:
+            await player.send_message(f"&cUnknown command '{name}'")
 
     async def incoming_packet(self, incoming_packet: Tuple[Player, Packet]):
         await self._queue.put(incoming_packet)
