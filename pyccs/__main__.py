@@ -3,7 +3,8 @@ import signal
 
 from pyccs import Server
 from pyccs.plugin.base import BasePlugin
-from pyccs.plugin.dice import DicePlugin
+from pyccs.plugin.autocracy import Autocracy
+from pyccs.plugin.livewire import PLUGIN as LiveWire
 
 
 def setup_logger():
@@ -29,7 +30,7 @@ def setup_signals(server: Server):
 if __name__ == "__main__":
     server = Server(verify_names=False, logger=setup_logger())
     server.load_plugin(BasePlugin)
-    server.load_plugin(DicePlugin)
+    server.load_plugin(LiveWire)
     setup_signals(server)
     try:
         server.start()

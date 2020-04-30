@@ -46,9 +46,10 @@ class Plugin:
                     await player.send_message("&cOnly operators can run this command.")
                     return
                 await func(server, player, *args)
+            check.__doc__ = func.__doc__
             for name in names:
                 self.commands[name] = check
-            return func
+            return check
         return inner
 
     def on_start(self, func):

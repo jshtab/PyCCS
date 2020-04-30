@@ -9,6 +9,7 @@ import nbtlib
 import random
 import string
 import logging
+import textwrap
 
 from pyccs.constants import *
 from pyccs.protocol import *
@@ -56,8 +57,10 @@ class Player:
         await self.__outgoing_queue.put(packet)
 
     async def send_message(self, message):
-        packet = CHAT_MESSAGE.to_packet(message=message, player_id=-1)
-        await self.__outgoing_queue.put(packet)
+        wrapped_message = '\n'.join(textwrap.wrap(message, width=64, replace_whitespace=False))
+        for line in wrapped_message.splitlines():
+            packet = CHAT_MESSAGE.to_packet(message=line, player_id=-1)
+            await self.__outgoing_queue.put(packet)
 
     def drop(self, reason: str):
         self.__drop = reason
