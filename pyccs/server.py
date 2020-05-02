@@ -121,7 +121,7 @@ class Server:
         self._plugins[plugin.name] = plugin
         for name, command in plugin.commands.items():
             if conflict := self._commands.get(name, None):
-                self.logger.warning(f"Command {name} in {command.__module__} conflicts with {conflict.__module__}")
+                self.logger.warning(f"Command {name} conflicts with previously loaded command")
                 continue
             self._commands[name] = command
         self.logger.info(f"Loaded {plugin}")
