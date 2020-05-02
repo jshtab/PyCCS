@@ -117,7 +117,12 @@ class Server:
     def running(self):
         return self._running
 
-    def load_plugin(self, plugin):
+    def get_plugin(self, name: str, default):
+        return self._plugins.get(name, default)
+
+    def load_plugin(self, module):
+        plugin = module.PLUGIN
+        plugin.module = module
         self._plugins[plugin.name] = plugin
         for name, command in plugin.commands.items():
             if conflict := self._commands.get(name, None):

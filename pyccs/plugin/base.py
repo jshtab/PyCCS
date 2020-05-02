@@ -11,14 +11,14 @@ from pyccs.plugin import Plugin
 from pyccs.server import Server, Player, Map
 from pyccs.protocol.base import *
 
-BasePlugin = Plugin("ClassicServer")
+PLUGIN = Plugin("ClassicServer")
 _thread_pool = futures.ThreadPoolExecutor(max_workers=3)
 
 
-@BasePlugin.on_packet(0x0d)
+@PLUGIN.on_packet(0x0d)
 async def handle_chat(server, player, packet):
     formatted_message = f"{player.name}: {packet.message}"
-    BasePlugin.get_logger(server).info(formatted_message)
+    PLUGIN.get_logger(server).info(formatted_message)
     if packet.message.startswith("/"):
         args = packet.message[1:].split()
         await server.run_command(player, args[0], args[1:])
@@ -29,7 +29,7 @@ async def handle_chat(server, player, packet):
         await server.relay_to_all(player, message_packet)
 
 
-@BasePlugin.on_packet(0x05)
+@PLUGIN.on_packet(0x05)
 async def update_block(server, player, packet):
     block_id = packet.block_id if packet.mode == 1 else 0
     position = packet.position
@@ -41,13 +41,13 @@ async def update_block(server, player, packet):
     await server.relay_to_all(player, set_packet)
 
 
-@BasePlugin.on_packet(0x08)
+@PLUGIN.on_packet(0x08)
 async def update_player_position(server,  player, packet):
     player.position = packet.position
     await server.relay_to_others(player, packet)
 
 
-@BasePlugin.on_packet(0x00)
+@PLUGIN.on_packet(0x00)
 async def player_handshake(server,  player, packet):
     player.init(packet)
     success = await _begin_handshake(server, player)

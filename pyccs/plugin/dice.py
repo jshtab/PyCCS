@@ -6,10 +6,10 @@
 from . import Plugin
 from random import randint
 
-DicePlugin = Plugin("DiceGames")
+PLUGIN = Plugin("DiceGames")
 
 
-@DicePlugin.on_command("roll")
+@PLUGIN.on_command("roll")
 async def roll_command(server, player, *args):
     try:
         try:
