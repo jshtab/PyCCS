@@ -29,9 +29,9 @@ def setup_signals(server: Server):
 
 if __name__ == "__main__":
     server = Server(verify_names=False, logger=setup_logger())
-    server.load_plugin(BasePlugin)
-    server.load_plugin(LiveWire)
-    server.load_plugin(Autocracy)
+    server.add_plugin(BasePlugin)
+    server.add_plugin(LiveWire)
+    server.add_plugin(Autocracy)
     setup_signals(server)
     try:
         server.start()

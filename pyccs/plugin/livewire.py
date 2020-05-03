@@ -3,6 +3,8 @@
 #  If the LICENSE file was not provided, you can find the full text of the license here:
 #  https://opensource.org/licenses/ISC
 
+import importlib
+
 from . import Plugin
 
 PLUGIN = Plugin("LiveWire")
@@ -31,3 +33,23 @@ async def help_command(server, player, command=None, *args):
         for name, command in commands[i:si]:
             help_page += f"/{name}\n"
         await player.send_message(help_page)
+
+
+@PLUGIN.on_command("reload", op_only=True)
+async def reload_command(server, player, name=None, *args):
+    """reload [plugin name]
+    Reloads the given plugin. The plugin must already be loaded, requires op."""
+    if name:
+        if plugin := server.get_plugin(name, None):
+            reload_plugin(server, plugin.module)
+            PLUGIN.get_logger(server).warning(f"{player} reloaded {name} ({plugin.module})")
+            await player.send_message("Plugin reloaded.")
+        else:
+            await player.send_message("&cCould not find that plugin")
+    else:
+        await player.send_message("&cRequires at least 1 argument")
+
+def reload_plugin(server, module):
+    new_module = importlib.reload(module)
+    server.add_plugin(new_module)
+    server.build_graph()

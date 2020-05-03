@@ -120,10 +120,19 @@ class Server:
     def get_plugin(self, name: str, default):
         return self._plugins.get(name, default)
 
-    def load_plugin(self, module):
+    def add_plugin(self, module):
         plugin = module.PLUGIN
         plugin.module = module
         self._plugins[plugin.name] = plugin
+
+    def build_graph(self):
+        self.logger.warning("Building plugin graph, this may take a while.")
+        self._commands = {}
+        for name, plugin in self._plugins.items():
+            self.logger.debug(f"Building graph: {name}")
+            self._graph_plugin(plugin)
+
+    def _graph_plugin(self, plugin):
         for name, command in plugin.commands.items():
             if conflict := self._commands.get(name, None):
                 self.logger.warning(f"Command {name} in {command.__module__} conflicts with {conflict.__module__}")
@@ -134,6 +143,7 @@ class Server:
     def start(self):
         self.logger.info(f"Starting server: {self}")
         self._running = True
+        self.build_graph()
         if not self.verify_names:
             self.logger.warning(VERIFY_WARNING % self)
         asyncio.run(self._bootstrap())
