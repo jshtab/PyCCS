@@ -53,3 +53,20 @@ def reload_plugin(server, module):
     new_module = importlib.reload(module)
     server.add_plugin(new_module)
     server.build_graph()
+
+@PLUGIN.on_command("load", op_only=True)
+async def load_command(server, player, module_name=None, *args):
+    """load [full package name]
+    Loads the given python module into the server. Requires operator."""
+    if module_name:
+        try:
+            new_module = importlib.import_module(module_name)
+            server.add_plugin(new_module)
+            server.build_graph()
+            await player.send_message(f"Loaded {module_name}")
+            PLUGIN.get_logger(server).warning(f"{player} loaded {module_name}")
+        except:
+            await player.send_message("&cError occurred while importing plugin, see logs.")
+            PLUGIN.get_logger(server).exception("Error occurred while importing a plugin")
+    else:
+        await player.send_message("&cRequires at least 1 argument")
