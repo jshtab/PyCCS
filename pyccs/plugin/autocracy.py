@@ -99,6 +99,7 @@ async def ban_player(server, player, *args):
             await player.send_message(f"Banished {target}")
             server._Autocracy_bans.append(target.name)
             PLUGIN.get_logger(server).info(f"{player} banished {target}")
+            await server.remove_player(target, "Banned")
         else:
             await player.send_message("&cCan't find that player.")
     else:
