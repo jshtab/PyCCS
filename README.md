@@ -19,7 +19,7 @@ get out of alpha:
 
 - [x] Functional server (blocks and messages get relayed)
 - [x] Load map from file
-- [ ] Administrative system (barebones; op, ban, kick)
+- [x] Administrative system (barebones; op, ban, kick)
 - [x] Basic account authentication (thru classicube.net)
 - [ ] Some sort of testing, and contribution guidelines.
 
