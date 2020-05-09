@@ -94,12 +94,13 @@ class Map:
 
 class Server:
     def __init__(self, name: str = "PyCCS Server", motd: str = str(VERSION), port: int = 25565, ip: str = "0.0.0.0", *,
-                 verify_names: bool = True, level: str = "level.cw",
+                 verify_names: bool = True, level: str = "level.cw", max_players: int = 9,
                  logger: logging.Logger = None, ignore_exceptions: bool = False):
         self.name = name
         self.motd = motd
         self.ip = ip
         self.port = port
+        self.max_players = max_players
         self.verify_names = verify_names
         self.ignore_exceptions = ignore_exceptions
         self.salt = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(32))
@@ -288,6 +289,9 @@ async def client_connection(server: Server, reader: asyncio.StreamReader, writer
     addr = writer.get_extra_info('peername')[0]
     player = Player(addr, outgoing_queue)
     server.logger.debug(f"Incoming connection from {addr}")
+    if len(server._players) == server.max_players:
+        player.drop("Server is full!")
+        server.logger.info(f"Player from {addr} denied; server is full.")
     incoming = asyncio.create_task(handle_incoming(server, player, reader))
     outgoing = asyncio.create_task(handle_outgoing(writer, outgoing_queue))
     while True:

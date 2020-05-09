@@ -28,7 +28,7 @@ def setup_signals(server: Server):
 
 
 if __name__ == "__main__":
-    server = Server(verify_names=False, logger=setup_logger())
+    server = Server(max_players=2, verify_names=False, logger=setup_logger())
     server.add_plugin(BasePlugin)
     server.add_plugin(LiveWire)
     server.add_plugin(Autocracy)
