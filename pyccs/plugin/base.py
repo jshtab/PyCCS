@@ -84,7 +84,7 @@ async def _send_level(server: Server, player: Player):
     level = server.level
     await player.send_signal(INITIALIZE_LEVEL)
     data = level.volume.to_bytes(4, byteorder="big") + bytes(level.data)
-    compressed = await loop.run_in_executor(_thread_pool, gzip.compress, data)
+    compressed = await loop.run_in_executor(_thread_pool, gzip.compress, data, 4)
     compressed_size = len(compressed)
     for i in range(0, compressed_size, 1024):
         data = compressed[i:i + 1024]
