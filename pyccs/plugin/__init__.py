@@ -3,9 +3,8 @@
 #  If the LICENSE file was not provided, you can find the full text of the license here:
 #  https://opensource.org/licenses/ISC
 
-import logging
-
 from pyccs.protocol import Position
+from pyccs.util import Configuration, wrap_coroutine
 
 
 class Command:
@@ -27,10 +26,12 @@ class Command:
 
 
 class Plugin:
-    def __init__(self, name):
+    def __init__(self, name, config_defaults: dict = {}):
         self.name = name
         self.commands = {}
         self.__callbacks = {}
+        self.config = Configuration(config_defaults)
+        self.on_shutdown(wrap_coroutine(self.config.save))
 
     def __str__(self):
         return f"{self.name} from {self.module if self.module else 'unknown module'}"
@@ -55,6 +56,7 @@ class Plugin:
         def inner(func):
             self._add_callback(callback_id, func)
             return func
+
         return inner
 
     def on_packet(self, packet_id):
@@ -66,6 +68,7 @@ class Plugin:
             for name in names:
                 self.commands[name] = command
             return command
+
         return inner
 
     def on_start(self, func):
@@ -90,6 +93,8 @@ class Plugin:
                 if position and place_position != position:
                     return
                 await func(server, player, block, place_position)
+
             self._add_callback(0x05, check)
             return func
+
         return inner

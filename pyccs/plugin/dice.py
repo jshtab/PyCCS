@@ -6,7 +6,9 @@
 from . import Plugin
 from random import randint
 
-PLUGIN = Plugin("DiceGames")
+PLUGIN = Plugin("DiceGames", {
+    "color": "b"
+})
 
 
 @PLUGIN.on_command("roll")
@@ -18,6 +20,6 @@ async def roll_command(server, player, *args):
             sides = 20
         if sides:
             sides = int(sides)
-            await server.announce(f"&b{player.name} rolled a {randint(1, sides)}")
+            await server.announce(f"&{PLUGIN.config.get('color')}{player.name} rolled a {randint(1, sides)}")
     except ValueError:
         await player.send_message("&aExpected a number as first argument")

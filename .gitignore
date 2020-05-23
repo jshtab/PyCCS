@@ -12,6 +12,7 @@ PyCCS.egg-info
 # ClassiCube / PyCCS
 *.cw
 *.log
+config
 
 # virtualenv
 .venv

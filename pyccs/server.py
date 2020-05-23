@@ -124,6 +124,7 @@ class Server:
     def add_plugin(self, module):
         plugin = module.PLUGIN
         plugin.module = module
+        plugin.config.set_file(f"./config/plugin/{plugin.name}.json")
         if conflict := self._plugins.get(plugin.name, None):
             self.logger.warning(f"{plugin} name conflicts with {conflict}, using already added plugin")
         else:
