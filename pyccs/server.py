@@ -124,7 +124,10 @@ class Server:
     def add_plugin(self, module):
         plugin = module.PLUGIN
         plugin.module = module
-        self._plugins[plugin.name] = plugin
+        if conflict := self._plugins.get(plugin.name, None):
+            self.logger.warning(f"{plugin} name conflicts with {conflict}, using already added plugin")
+        else:
+            self._plugins[plugin.name] = plugin
 
     def build_graph(self):
         self.logger.warning("Building plugin graph, this may take a while.")
@@ -136,9 +139,9 @@ class Server:
     def _graph_plugin(self, plugin):
         for name, command in plugin.commands.items():
             if conflict := self._commands.get(name, None):
-                self.logger.warning(f"Command {name} conflicts with previously loaded command")
-                continue
-            self._commands[name] = command
+                self.logger.warning(f"{command} name conflicts with {conflict}, using existing command name.")
+            else:
+                self._commands[name] = command
         self.logger.info(f"Loaded {plugin}")
 
     def start(self):

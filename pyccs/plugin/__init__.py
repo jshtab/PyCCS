@@ -8,11 +8,32 @@ import logging
 from pyccs.protocol import Position
 
 
+class Command:
+    def __init__(self, plugin, func, *names, op_only):
+        self.plugin = plugin
+        self.names = names
+        self._func = func
+        self.op_only = op_only
+        self.__doc__ = func.__doc__
+
+    def __str__(self):
+        return f"Command {self.names[0]} from {self.plugin}"
+
+    async def __call__(self, server, player, *args):
+        if self.op_only and not player.is_op:
+            await player.send_message("&cOnly operators can run this command.")
+            return
+        await self._func(server, player, *args)
+
+
 class Plugin:
     def __init__(self, name):
         self.name = name
         self.commands = {}
         self.__callbacks = {}
+
+    def __str__(self):
+        return f"{self.name} from {self.module if self.module else 'unknown module'}"
 
     def get_logger(self, server):
         return server.logger.getChild(self.name)
@@ -41,15 +62,10 @@ class Plugin:
 
     def on_command(self, *names, op_only=False):
         def inner(func):
-            async def check(server, player, *args):
-                if op_only and not player.is_op:
-                    await player.send_message("&cOnly operators can run this command.")
-                    return
-                await func(server, player, *args)
-            check.__doc__ = func.__doc__
+            command = Command(self, func, *names, op_only=op_only)
             for name in names:
-                self.commands[name] = check
-            return check
+                self.commands[name] = command
+            return command
         return inner
 
     def on_start(self, func):
