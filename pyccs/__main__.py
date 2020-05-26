@@ -32,7 +32,8 @@ parser.add_argument("-v", "--verbose", dest="debug_level", action="store_const",
 def setup_logger():
     logger = logging.getLogger('PyCCS')
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler('pyccs.log')
+    os.makedirs(os.path.dirname("./logs/"), exist_ok=True)
+    fh = logging.FileHandler(f'./logs/{datetime.now().strftime("%Y.%m.%d-%H.%M.%S")}.log')
     fh.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(args.debug_level)
