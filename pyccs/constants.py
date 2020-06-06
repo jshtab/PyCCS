@@ -37,7 +37,7 @@ class Version:
     """Name of the server software"""
     MAJOR = 0
     """Major version per semver v2"""
-    MINOR = 4
+    MINOR = 5
     """Minor version per semver v2"""
     PATCH = 0
     """Patch number per semver v2"""
