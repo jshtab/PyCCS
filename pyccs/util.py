@@ -5,6 +5,20 @@
 
 import json
 import os
+import asyncio
+
+from typing import Any
+
+
+def wrap_except(exception, msg: str):
+    def inner(func):
+        def even_inner(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                raise exception(msg) from e
+        return even_inner
+    return inner
 
 
 def deep_update(old: dict, new: dict) -> None:
@@ -76,3 +90,57 @@ class Configuration:
         for part in key.split("."):
             last = last[part]
         return last
+
+
+class Connection:
+    """Subscription to a Event. Should only be created by Event."""
+    def __init__(self, event, listener):
+        self._event = event
+        self._listener = listener
+        self._disconnected = False
+
+    async def invoke(self, *args, **kwargs):
+        """Invoke the listener with the given arguments. Should only be run by Event"""
+        await self._listener(*args, **kwargs)
+
+    def disconnect(self):
+        """Mark this connection for disconnection from the event"""
+        self._disconnected = False
+
+    def disconnected(self):
+        """Return if this connection is marked for disconnection"""
+        return self._disconnected
+
+
+class Event:
+    """Event callback dispatcher for AsyncIO similar in syntax to RBXScriptSignal."""
+    def __init__(self):
+        self._loop = asyncio.get_running_loop()
+        self._connections = []
+        pass
+
+    async def fire(self, *args, **kwargs) -> None:
+        """Fire the event with the given arguments."""
+        for connection in self._connections:
+            if connection.disconnected():
+                self._connections.remove(connection)
+            else:
+                await connection.invoke(*args, **kwargs)
+
+    def connect(self, listener) -> Connection:
+        """Subscribe the coroutine *listener* to this event."""
+        connection = Connection(self, listener)
+        self._connections.append(connection)
+        return connection
+
+    async def wait(self) -> Any:
+        """Wait until the event is fired, return any arguments the event had."""
+        future = self._loop.create_future()
+
+        async def inner(*args, **kwargs):
+            future.set_result((args, kwargs))
+
+        connection = self.connect(inner)
+        await future
+        connection.disconnect()
+        return future.result()
