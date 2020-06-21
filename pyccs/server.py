@@ -13,7 +13,7 @@ import textwrap
 
 from pyccs.constants import *
 from pyccs.protocol import *
-from pyccs.protocol.base import *
+from pyccs.protocol.cp7x import *
 
 
 class Player:

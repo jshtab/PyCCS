@@ -3,7 +3,7 @@
 #  If the LICENSE file was not provided, you can find the full text of the license here:
 #  https://opensource.org/licenses/ISC
 
-from pyccs.protocol import Position
+from pyccs.protocol.common import Position
 from pyccs.util import Configuration, wrap_coroutine
 
 

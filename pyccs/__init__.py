@@ -8,5 +8,5 @@ Python ClassiCube Server is a simple, cross-platform and extendable server for C
 
 from pyccs.constants import *
 from pyccs.protocol import *
-from pyccs.protocol.base import *
+from pyccs.protocol.cp7x import *
 from pyccs.server import *

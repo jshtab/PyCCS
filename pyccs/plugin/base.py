@@ -7,9 +7,9 @@ import asyncio
 import gzip
 import concurrent.futures as futures
 
+from pyccs.protocol.cp7x import *
 from pyccs.plugin import Plugin
 from pyccs.server import Server, Player, Map
-from pyccs.protocol.base import *
 
 PLUGIN = Plugin("ClassicServer")
 _thread_pool = futures.ThreadPoolExecutor(max_workers=3)
