@@ -280,7 +280,7 @@ async def handle_incoming(server: Server, player: Player, reader: asyncio.Stream
             packet_id = int.from_bytes(id_byte, "big")
             packet_info = PARSEABLES[packet_id]
             packet = packet_info.to_packet()
-            packet_bytes = await reader.readexactly(packet_info.size)
+            packet_bytes = await reader.readexactly(packet_info.size())
             #print(f"-> {packet_id}: {packet_bytes}")
             packet.from_bytes(packet_bytes)
             await server.incoming_packet((player, packet))

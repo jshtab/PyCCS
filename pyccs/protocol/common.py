@@ -158,13 +158,18 @@ class String(DataType):
 
 class PacketInfo:
     """Contains metadata on a specific packet, such as its size, and how it should be mapped to Packet attributes."""
-    def __init__(self, packet_id: int, size: int, byte_map: List[Tuple[Type[DataType], str]]):
+    def __init__(self, packet_id: int, byte_map: List[Tuple[Type[DataType], str]]):
         self.packet_id = packet_id
         """The ID of the packet"""
-        self.size = size
-        """The size of the packet (in bytes)"""
-        self.byte_map = byte_map
+        self.byte_map: List[Tuple[Type[DataType], str]] = byte_map
         """A list of tuples which maps data in the packet to attributes."""
+
+    def size(self):
+        """Return the size of the packet's data in bytes."""
+        reg = 0
+        for entry in self.byte_map:
+            reg += entry[0].struct.size
+        return reg
 
     def to_packet(self, **kwargs):
         """Returns a Packet using this PacketInfo. The items of kwargs will be set as the packet's attributes."""

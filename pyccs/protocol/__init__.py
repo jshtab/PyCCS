@@ -8,10 +8,11 @@ import math
 import struct
 
 from typing import List, Tuple, Any, Optional, Type
+from struct import Struct
 
 
 class DataType:
-    struct = None
+    struct: Struct = None
 
     def __init__(self):
         raise RuntimeWarning("You do not need to construct DataType to use it.")
