@@ -115,7 +115,6 @@ class Connection:
 class Event:
     """Event callback dispatcher for AsyncIO similar in syntax to RBXScriptSignal."""
     def __init__(self):
-        self._loop = asyncio.get_running_loop()
         self._connections = []
         pass
 
@@ -135,7 +134,7 @@ class Event:
 
     async def wait(self) -> Any:
         """Wait until the event is fired, return any arguments the event had."""
-        future = self._loop.create_future()
+        future = asyncio.get_running_loop().create_future()
 
         async def inner(*args, **kwargs):
             future.set_result((args, kwargs))
