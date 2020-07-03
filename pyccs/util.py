@@ -105,7 +105,7 @@ class Connection:
 
     def disconnect(self):
         """Mark this connection for disconnection from the event"""
-        self._disconnected = False
+        self._disconnected = True
 
     def disconnected(self):
         """Return if this connection is marked for disconnection"""
