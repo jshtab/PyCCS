@@ -94,8 +94,7 @@ class Configuration:
 
 class Connection:
     """Subscription to a Event. Should only be created by Event."""
-    def __init__(self, event, listener):
-        self._event = event
+    def __init__(self, listener):
         self._listener = listener
         self._disconnected = False
 
@@ -128,7 +127,7 @@ class Event:
 
     def connect(self, listener) -> Connection:
         """Subscribe the coroutine *listener* to this event."""
-        connection = Connection(self, listener)
+        connection = Connection(listener)
         self._connections.append(connection)
         return connection
 
