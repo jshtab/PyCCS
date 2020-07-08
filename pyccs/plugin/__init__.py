@@ -3,8 +3,9 @@
 #  If the LICENSE file was not provided, you can find the full text of the license here:
 #  https://opensource.org/licenses/ISC
 
-from pyccs.protocol.common import Position
+from pyccs.protocol import Position
 from pyccs.util import Configuration, wrap_coroutine
+import pyccs.server as server
 
 
 class Command:
@@ -28,39 +29,26 @@ class Command:
 class Plugin:
     def __init__(self, name, config_defaults: dict = {}):
         self.name = name
-        self.commands = {}
-        self.__callbacks = {}
         self.config = Configuration(config_defaults)
+        self.__connections = []
         self.on_shutdown(wrap_coroutine(self.config.save))
 
     def __str__(self):
         return f"{self.name} from {self.module if self.module else 'unknown module'}"
 
-    def get_logger(self, server):
+    def _bind_connection(self, event, func):
+        self.__connections.append(event.connect(func))
+
+    def logger(self):
         return server.logger.getChild(self.name)
 
-    def _add_callback(self, callback_id, func):
-        callback = self.__callbacks.get(callback_id, None)
-        if not callback:
-            self.__callbacks[callback_id] = []
-        self.__callbacks[callback_id].append(func)
-
-    async def run_callbacks(self, server, callback_id, args: tuple):
-        for callback in self.__callbacks.get(callback_id, []):
-            try:
-                await callback(server, *args)
-            except:
-                self.get_logger(server).exception(f"Error occurred while running callback {callback}")
-
-    def callback(self, callback_id):
-        def inner(func):
-            self._add_callback(callback_id, func)
-            return func
-
-        return inner
-
     def on_packet(self, packet_id):
-        return self.callback(packet_id)
+        def inner(func):
+            async def check(player, packet):
+                if packet.packet_id() == packet_id:
+                    await func(player, packet)
+            self._bind_connection(server.incoming_packet, check)
+        return inner
 
     def on_command(self, *names, op_only=False):
         def inner(func):
@@ -72,29 +60,13 @@ class Plugin:
         return inner
 
     def on_start(self, func):
-        return self.callback("SERVER/START")(func)
+        self._bind_connection(server.starting, func)
 
     def on_shutdown(self, func):
-        return self.callback("SERVER/SHUTDOWN")(func)
+        self._bind_connection(server.shutdown, func)
 
     def on_player_added(self, func):
-        return self.callback("SERVER/NEW_PLAYER")(func)
+        self._bind_connection(server.player_added, func)
 
-    def on_player_removed(self, func):
-        return self.callback("SERVER/KICK")(func)
-
-    def on_block(self, block_id: int = -1, position: Position = None):
-        def inner(func):
-            async def check(server, player, packet):
-                block = packet.block_id
-                place_position = packet.position
-                if block_id != -1 and block != block_id:
-                    return
-                if position and place_position != position:
-                    return
-                await func(server, player, block, place_position)
-
-            self._add_callback(0x05, check)
-            return func
-
-        return inner
+    def on_player_removing(self, func):
+        self._bind_connection(server.player_removing, func)

@@ -6,6 +6,7 @@
 import json
 import os
 import asyncio
+import logging
 
 from typing import Any
 
@@ -17,7 +18,9 @@ def wrap_except(exception, msg: str):
                 return func(*args, **kwargs)
             except Exception as e:
                 raise exception(msg) from e
+
         return even_inner
+
     return inner
 
 
@@ -43,6 +46,7 @@ def deep_clean(d: dict) -> dict:
 def wrap_coroutine(f):
     async def wrapper(*args, **kwargs):
         f(*args, **kwargs)
+
     return wrapper
 
 
@@ -94,13 +98,21 @@ class Configuration:
 
 class Connection:
     """Subscription to a Event. Should only be created by Event."""
-    def __init__(self, listener):
+
+    def __init__(self, listener, coroutine=False):
         self._listener = listener
         self._disconnected = False
+        self._coro = coroutine
+
+    def __str__(self):
+        return f"Connection handeled by {self._listener}"
 
     async def invoke(self, *args, **kwargs):
         """Invoke the listener with the given arguments. Should only be run by Event"""
-        await self._listener(*args, **kwargs)
+        if self._coro:
+            await self._listener
+        else:
+            await self._listener(*args, **kwargs)
 
     def disconnect(self):
         """Mark this connection for disconnection from the event"""
@@ -113,6 +125,7 @@ class Connection:
 
 class Event:
     """Event callback dispatcher for AsyncIO similar in syntax to RBXScriptSignal."""
+
     def __init__(self):
         self._connections = []
         pass
@@ -123,7 +136,10 @@ class Event:
             if connection.disconnected():
                 self._connections.remove(connection)
             else:
-                await connection.invoke(*args, **kwargs)
+                try:
+                    await connection.invoke(*args, **kwargs)
+                except Exception:
+                    logging.exception("Error occurred while running event callback")
 
     def connect(self, listener) -> Connection:
         """Subscribe the coroutine *listener* to this event."""

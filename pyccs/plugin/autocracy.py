@@ -14,7 +14,7 @@ PLUGIN = Plugin("Autocracy", {
 
 @PLUGIN.on_player_added
 async def init_player(server, player):
-    logger = PLUGIN.get_logger(server)
+    logger = PLUGIN.logger(server)
     if PLUGIN.config.get("loopback_op"):
         if player.ip != "127.0.0.1":
             logger.debug(f"Player {player} is not from loopback.")
@@ -31,7 +31,7 @@ async def init_player(server, player):
 @PLUGIN.on_player_added
 async def check_bans(server, player):
     if player.name in PLUGIN.config.get("bans"):
-        PLUGIN.get_logger(server).info(f"Player {player} is on the ban list.")
+        PLUGIN.logger(server).info(f"Player {player} is on the ban list.")
         await server.remove_player(player, "Banned")
 
 
@@ -45,7 +45,7 @@ async def op_player(server, player, *args):
             await player.send_message(f"Made {target} an operator!")
             await target.send_message(f"Granted operator status by {player}")
             PLUGIN.config.get("operators").append(target.name)
-            PLUGIN.get_logger(server).info(f"{player} gave op to {target}")
+            PLUGIN.logger(server).info(f"{player} gave op to {target}")
         else:
             await player.send_message("&cCan't find that player.")
     else:
@@ -64,7 +64,7 @@ async def deop_player(server, player, *args):
             await target.send_message(f"You were deoped by {player}")
             if target.name in ops:
                 ops.remove(target.name)
-            PLUGIN.get_logger(server).info(f"{player} deoped {target}")
+            PLUGIN.logger(server).info(f"{player} deoped {target}")
         else:
             await player.send_message("&cCan't find that player.")
     else:
@@ -79,7 +79,7 @@ async def ban_player(server, player, *args):
         if target := server.get_player(name=args[0]):
             await player.send_message(f"Banished {target}")
             PLUGIN.config.get("bans").append(target.name)
-            PLUGIN.get_logger(server).info(f"{player} banished {target}")
+            PLUGIN.logger(server).info(f"{player} banished {target}")
             await server.remove_player(target, "Banned")
         else:
             await player.send_message("&cCan't find that player.")
@@ -97,7 +97,7 @@ async def unban_player(server, player, *args):
         if target in bans:
             await player.send_message(f"Unbanned {target}")
             bans.remove(target)
-            PLUGIN.get_logger(server).info(f"{player} unbanned {target}")
+            PLUGIN.logger(server).info(f"{player} unbanned {target}")
         else:
             await player.send_message("&cNo bans on that player.")
     else:

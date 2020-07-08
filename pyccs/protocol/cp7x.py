@@ -4,7 +4,12 @@
 #  https://opensource.org/licenses/ISC
 """Protocol definition for Classic Protocol v7/CPE"""
 
-from pyccs.protocol.common import *
+import gzip
+import hashlib
+import pyccs.server as server
+
+from pyccs.protocol import *
+from pyccs.plugin import Plugin
 
 
 PLAYER_IDENTIFICATION = PacketInfo(packet_id=0x00, byte_map=[
@@ -109,3 +114,112 @@ PARSEABLES = {
     0x0d: CHAT_MESSAGE,
 }
 """A dictionary containing a list of parseable packets, where the key is the ID and the value is the PacketInfo."""
+
+PLUGIN = Plugin("ClassicServer7x", {
+    "default_motd": "github.com/jshtab/pyccs",
+    "verify_names": False,
+    "main_level": "main"
+})
+
+
+@PLUGIN.on_packet(0x0d)
+async def handle_chat(player, packet):
+    formatted_message = f"{player.name}: {packet.message}"
+    PLUGIN.logger().info(formatted_message)
+    if packet.message.startswith("/"):
+        args = packet.message[1:].split()
+        await server.run_command(player, args[0], args[1:])
+    else:
+        message_packet = CHAT_MESSAGE.to_packet(
+            message=formatted_message
+        )
+        await server.relay_to_all(player, message_packet)
+
+
+@PLUGIN.on_packet(0x05)
+async def update_block(player, packet):
+    block_id = packet.block_id if packet.mode == 1 else 0
+    position = packet.position
+    server.main_level.set_block(position, block_id)
+    set_packet = SERVER_SET_BLOCK.to_packet(
+        position=position,
+        block_id=block_id
+    )
+    await server.relay_to_all(player, set_packet)
+
+
+@PLUGIN.on_packet(0x08)
+async def update_player_position(player, packet):
+    player.position = packet.position
+    await server.relay_to_others(player, packet)
+
+
+@PLUGIN.on_packet(0x00)
+async def player_handshake(player, packet):
+    player.name = packet.username
+    player.mp_pass = packet.mp_pass
+    success = await _begin_handshake(player)
+    if success:
+        await server.add_player(player)
+
+
+def authenticated(self, salt: str) -> bool:
+    expected = salt + self.name
+    expected_hash = hashlib.md5(expected.encode(encoding="ascii")).hexdigest()
+    return expected_hash == self.mp_pass
+
+
+async def _begin_handshake(player) -> bool:
+    if PLUGIN.config.get("verify_names") and not authenticated(player, server.salt):
+        player.drop("Could not authenticate user.")
+        return False
+    ident_packet = SERVER_IDENTIFICATION.to_packet(
+            version=7,
+            name=server.name,
+            motd=PLUGIN.config.get("default_motd"),
+            user_type=0x64 if player.is_op else 0x00
+        )
+    await player.send_packet(ident_packet)
+    await _send_level(player)
+    await _relay_players(player)
+    return True
+
+
+async def _relay_players(to):
+    for _, player in server._players.items():
+        if player:
+            spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name,
+                                                  position=player.position)
+            await to.send_packet(spawn_packet)
+
+
+async def _send_level(player):
+    level = server.main_level
+    await player.send_signal(INITIALIZE_LEVEL)
+    data = level.volume.to_bytes(4, byteorder="big") + bytes(level.data)
+    compressed = gzip.compress(data, 4)
+    compressed_size = len(compressed)
+    for i in range(0, compressed_size, 1024):
+        data = compressed[i:i + 1024]
+        packet = LEVEL_DATA_CHUNK.to_packet(
+            data=data,
+            length=len(data),
+            percent_complete=int((i / compressed_size) * 100)
+        )
+        await player.send_packet(packet)
+    finalize = FINALIZE_LEVEL.to_packet(map_size=level.size)
+    await player.send_packet(finalize)
+
+
+@PLUGIN.on_player_added
+async def init_player(player):
+    spawn_packet = SPAWN_PLAYER.to_packet(player_id=player.player_id, name=player.name, position=player.position)
+    await server.relay_to_others(player, spawn_packet)
+    own_packet = SPAWN_PLAYER.to_packet(player_id=-1, name=player.name, position=server.main_level.spawn)
+    await player.send_packet(own_packet)
+
+
+@PLUGIN.on_player_removing
+async def rem_player(player, reason):
+    packet = DESPAWN_PLAYER.to_packet(player_id=player.player_id)
+    await server.relay_to_others(player, packet)

@@ -42,7 +42,7 @@ async def reload_command(server, player, name=None, *args):
     if name:
         if plugin := server.get_plugin(name, None):
             reload_plugin(server, plugin.module)
-            PLUGIN.get_logger(server).warning(f"{player} reloaded {name} ({plugin.module})")
+            PLUGIN.logger(server).warning(f"{player} reloaded {name} ({plugin.module})")
             await player.send_message("Plugin reloaded.")
         else:
             await player.send_message("&cCould not find that plugin")
@@ -64,9 +64,9 @@ async def load_command(server, player, module_name=None, *args):
             server.add_plugin(new_module)
             server.build_graph()
             await player.send_message(f"Loaded {module_name}")
-            PLUGIN.get_logger(server).warning(f"{player} loaded {module_name}")
+            PLUGIN.logger(server).warning(f"{player} loaded {module_name}")
         except:
             await player.send_message("&cError occurred while importing plugin, see logs.")
-            PLUGIN.get_logger(server).exception("Error occurred while importing a plugin")
+            PLUGIN.logger(server).exception("Error occurred while importing a plugin")
     else:
         await player.send_message("&cRequires at least 1 argument")

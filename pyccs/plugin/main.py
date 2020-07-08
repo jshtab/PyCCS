@@ -2,10 +2,9 @@
 #  This source code file is available under the terms of the ISC License.
 #  If the LICENSE file was not provided, you can find the full text of the license here:
 #  https://opensource.org/licenses/ISC
-"""
-Python ClassiCube Server is a simple, cross-platform and extendable server for ClassiCube.
-"""
 
-from pyccs.constants import *
-from pyccs.protocol import *
-import pyccs.server as server
+from pyccs.plugin import Plugin
+from pyccs.util import Configuration
+
+PLUGIN = Plugin("PyCCS", {})
+
